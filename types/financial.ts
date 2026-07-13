@@ -13,13 +13,13 @@ export type FinancialProfile = {
 
   down_payment_percent: number;
 
-  interest_rate?: number;
+  interest_rate: number;
 
-  property_tax_rate?: number;
+  property_tax_rate: number;
 
-  hoa?: number;
+  hoa: number;
 
-  insurance?: number;
+  insurance: number;
 
   monthly_investment?: number;
 

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import OverviewSection from "@/components/dashboard/OverviewSection";
 import PortfolioSection from "@/components/dashboard/PortfolioSection";
 import HouseSection from "@/components/dashboard/HouseSection";
+import HouseAffordability from "@/components/dashboard/HouseAffordability";
 import AISection from "@/components/dashboard/AISection";
 
 import {
@@ -15,32 +16,11 @@ import {
   calculateAllocation,
 } from "@/services/finance";
 
-
-type FinancialProfile = {
-  id: number;
-
-  home_value: number;
-  mortgage: number;
-  cash: number;
-
-  monthly_income: number;
-
-  target_home_price: number;
-  down_payment_percent: number;
-};
-
-
-type Investment = {
-  id: number;
-
-  ticker: string;
-
-  balance: number;
-};
+import type { FinancialProfile } from "@/types/financial";
+import type { Investment } from "@/types/investment";
 
 
 export default function DashboardPage() {
-
 
   const [profile, setProfile] =
     useState<FinancialProfile | null>(null);
@@ -61,24 +41,18 @@ export default function DashboardPage() {
 
   async function loadData() {
 
-
     const {
       data: profileData,
       error: profileError,
-
-    } = await supabase
-
-      .from("financial_profile")
-
-      .select("*")
-
-      .eq("id",1)
-
-      .single();
+    } =
+      await supabase
+        .from("financial_profile")
+        .select("*")
+        .eq("id", 1)
+        .single();
 
 
-
-    if(profileError){
+    if (profileError) {
 
       console.error(profileError);
 
@@ -91,16 +65,14 @@ export default function DashboardPage() {
     const {
       data: investmentData,
       error: investmentError,
-
-    } = await supabase
-
-      .from("investments")
-
-      .select("id,ticker,balance");
+    } =
+      await supabase
+        .from("investments")
+        .select("id,ticker,balance");
 
 
 
-    if(investmentError){
+    if (investmentError) {
 
       console.error(investmentError);
 
@@ -118,7 +90,7 @@ export default function DashboardPage() {
 
 
 
-  if(!profile){
+  if (!profile) {
 
     return (
 
@@ -165,9 +137,7 @@ export default function DashboardPage() {
 
 
   const targetDownPayment =
-
     profile.target_home_price *
-
     (
       profile.down_payment_percent / 100
     );
@@ -175,22 +145,19 @@ export default function DashboardPage() {
 
 
   const currentDownPayment =
-
     profile.cash +
-
     investmentTotal;
 
 
 
   const largestHolding =
-
     allocation.length > 0
 
       ? allocation.reduce(
-          (max,item)=>
+          (max, item) =>
             item.balance > max.balance
-            ? item
-            : max
+              ? item
+              : max
         ).ticker
 
       : "-";
@@ -199,7 +166,7 @@ export default function DashboardPage() {
 
   return (
 
-    <main className="space-y-10">
+    <main className="min-h-screen bg-slate-100 p-10">
 
 
       <div>
@@ -221,79 +188,128 @@ export default function DashboardPage() {
 
 
 
-      <OverviewSection
+      {/* Overview */}
 
-        netWorth={netWorth}
+      <div className="mt-10">
 
-        assets={assets}
+        <OverviewSection
 
-        investments={investmentTotal}
+          netWorth={netWorth}
 
-        cash={profile.cash}
+          assets={assets}
 
-        investmentsData={investments}
+          investments={investmentTotal}
 
-      />
+          cash={profile.cash}
 
+          investmentsData={investments}
 
+        />
 
-      <PortfolioSection
-
-        home={profile.home_value}
-
-        cash={profile.cash}
-
-        investments={investmentTotal}
-
-        mortgage={profile.mortgage}
-
-        monthlyIncome={profile.monthly_income}
-
-        investmentData={investments}
-
-        allocation={allocation}
-
-      />
+      </div>
 
 
 
-      <HouseSection
+      {/* Portfolio */}
 
-        targetDownPayment={targetDownPayment}
+      <div className="mt-10">
 
-        currentDownPayment={currentDownPayment}
+        <PortfolioSection
 
-        homeValue={profile.home_value}
+          home={profile.home_value}
 
-        mortgage={profile.mortgage}
+          cash={profile.cash}
 
-        cash={profile.cash}
+          investments={investmentTotal}
 
-        investments={investmentTotal}
+          mortgage={profile.mortgage}
 
-        targetPrice={profile.target_home_price}
+          monthlyIncome={profile.monthly_income}
 
-        downPercent={profile.down_payment_percent}
+          investmentData={investments}
 
-      />
+          allocation={allocation}
+
+        />
+
+      </div>
 
 
 
-      <AISection
+      {/* House Planning */}
 
-        netWorth={netWorth}
+      <div className="mt-10">
 
-        investmentTotal={investmentTotal}
+        <HouseSection
 
-        monthlyIncome={profile.monthly_income}
+          targetDownPayment={targetDownPayment}
 
-        currentDownPayment={currentDownPayment}
+          currentDownPayment={currentDownPayment}
 
-        targetDownPayment={targetDownPayment}
+          homeValue={profile.home_value}
 
-        largestHolding={largestHolding}
+          mortgage={profile.mortgage}
 
-      />
+          cash={profile.cash}
+
+          investments={investmentTotal}
+
+          targetPrice={profile.target_home_price}
+
+          downPercent={profile.down_payment_percent}
+
+        />
+
+      </div>
+
+
+
+      {/* House Affordability */}
+
+      <div className="mt-10">
+
+        <HouseAffordability
+
+          homePrice={profile.target_home_price}
+
+          downPayment={targetDownPayment}
+
+          interestRate={profile.interest_rate}
+
+          propertyTaxRate={profile.property_tax_rate}
+
+          insurance={profile.insurance}
+
+          hoa={profile.hoa}
+
+          monthlyIncome={profile.monthly_income}
+        />
+
+      </div>
+
+
+
+      {/* AI */}
+
+      <div className="mt-10">
+
+        <AISection
+
+          netWorth={netWorth}
+
+          investmentTotal={investmentTotal}
+
+          monthlyIncome={profile.monthly_income}
+
+          currentDownPayment={currentDownPayment}
+
+          targetDownPayment={targetDownPayment}
+
+          largestHolding={largestHolding}
+
+        />
+
+      </div>
 
 
     </main>
