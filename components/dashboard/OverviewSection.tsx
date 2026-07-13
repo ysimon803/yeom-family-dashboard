@@ -1,8 +1,7 @@
+"use client";
+
 import SummaryCards from "./SummaryCards";
-import AssetBreakdown from "./AssetBreakdown";
-import MonthlySummary from "./MonthlySummary";
-import GoalCard from "./GoalCard";
-import NetWorthChart from "./NetWorthChart";
+import PortfolioSummary from "./PortfolioSummary";
 
 type Props = {
   netWorth: number;
@@ -10,13 +9,7 @@ type Props = {
   investments: number;
   cash: number;
 
-  home: number;
-  mortgage: number;
-
-  monthlyIncome: number;
-
-  goalCurrent: number;
-  goalTarget: number;
+  investmentsData: any[];
 };
 
 export default function OverviewSection({
@@ -24,17 +17,10 @@ export default function OverviewSection({
   assets,
   investments,
   cash,
-
-  home,
-  mortgage,
-
-  monthlyIncome,
-
-  goalCurrent,
-  goalTarget,
+  investmentsData,
 }: Props) {
   return (
-    <>
+    <div className="space-y-8">
 
       <SummaryCards
         netWorth={netWorth}
@@ -43,33 +29,10 @@ export default function OverviewSection({
         cash={cash}
       />
 
-      <div className="mt-10 grid grid-cols-2 gap-8">
+      <PortfolioSummary
+        investments={investmentsData}
+      />
 
-        <AssetBreakdown
-          home={home}
-          cash={cash}
-          investments={investments}
-          mortgage={mortgage}
-        />
-
-        <MonthlySummary
-          monthlyIncome={monthlyIncome}
-          mortgage={mortgage}
-        />
-
-      </div>
-
-      <div className="mt-10 grid grid-cols-2 gap-8">
-
-        <GoalCard
-          current={goalCurrent}
-          target={goalTarget}
-        />
-
-        <NetWorthChart />
-
-      </div>
-
-    </>
+    </div>
   );
 }
