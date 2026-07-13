@@ -1,13 +1,12 @@
 export const house = {
   currentValue: 430000,
-
   mortgage: 410000,
-
   interestRate: 5.25,
 
-  equity: 20000,
-
   targetPrice: 900000,
+  targetDownPaymentPercent: 20,
 
-  targetMoveYear: 2028,
+  cashAvailable: 15000,
+
+  moveYear: 2028,
 };
