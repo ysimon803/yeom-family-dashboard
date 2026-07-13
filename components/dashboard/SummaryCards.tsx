@@ -1,32 +1,71 @@
-import MetricCard from "@/components/ui/MetricCard";
-import { portfolio } from "@/data/portfolio";
+type Props = {
+  netWorth: number;
+  assets: number;
+  investments: number;
+  cash: number;
+};
 
-export default function SummaryCards() {
+export default function SummaryCards({
+  netWorth,
+  assets,
+  investments,
+  cash,
+}: Props) {
   return (
-    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-      <MetricCard
+    <div className="grid grid-cols-4 gap-6">
+
+      <Card
         title="Net Worth"
-        value={`$${portfolio.netWorth.toLocaleString()}`}
-        subtitle="Total Family Assets"
+        value={netWorth}
+        color="text-blue-600"
       />
 
-      <MetricCard
-        title="Retirement"
-        value={`$${portfolio.retirement.total.toLocaleString()}`}
-        subtitle="401(k) • Roth • HSA"
+      <Card
+        title="Assets"
+        value={assets}
+        color="text-green-600"
       />
 
-      <MetricCard
-        title="TI Equity"
-        value={`$${portfolio.ti.total.toLocaleString()}`}
-        subtitle="RSU + Options"
+      <Card
+        title="Investments"
+        value={investments}
+        color="text-purple-600"
       />
 
-      <MetricCard
+      <Card
         title="Cash"
-        value={`$${portfolio.cash.toLocaleString()}`}
-        subtitle="Emergency Fund"
+        value={cash}
+        color="text-orange-600"
       />
+
     </div>
   );
+}
+
+function Card({
+  title,
+  value,
+  color,
+}:{
+  title:string;
+  value:number;
+  color:string;
+}){
+
+  return(
+
+    <div className="rounded-2xl bg-white p-6 shadow">
+
+      <div className="text-slate-500">
+        {title}
+      </div>
+
+      <div className={`mt-4 text-4xl font-bold ${color}`}>
+        ${value.toLocaleString()}
+      </div>
+
+    </div>
+
+  )
+
 }
