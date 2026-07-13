@@ -1,31 +1,37 @@
+import { ReactNode } from "react";
+
 type MetricCardProps = {
   title: string;
   value: string;
+  subtitle?: string;
+  icon?: ReactNode;
 };
 
 export default function MetricCard({
   title,
   value,
+  subtitle,
+  icon,
 }: MetricCardProps) {
   return (
-    <div
-      style={{
-        background: "white",
-        padding: "20px",
-        borderRadius: "16px",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-      }}
-    >
-      <h3>{title}</h3>
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm font-medium text-slate-500">
+          {title}
+        </p>
 
-      <h1
-        style={{
-          color: "#1D4ED8",
-          fontSize: "32px",
-        }}
-      >
+        {icon}
+      </div>
+
+      <h2 className="text-3xl font-bold text-slate-900">
         {value}
-      </h1>
+      </h2>
+
+      {subtitle && (
+        <p className="mt-3 text-sm text-slate-500">
+          {subtitle}
+        </p>
+      )}
     </div>
   );
 }
