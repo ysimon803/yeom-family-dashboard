@@ -1,7 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 
-import Sidebar from "@/components/layout/Sidebar";
+import AppLayout from "@/components/layout/AppLayout";
 
 export const metadata: Metadata = {
   title: "WealthOS",
@@ -15,23 +15,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-
       <body className="bg-slate-100">
-
-        <div className="flex min-h-screen">
-
-          <Sidebar />
-
-          <main className="flex-1 p-8">
-
-            {children}
-
-          </main>
-
-        </div>
-
+        <AppLayout>
+          {children}
+        </AppLayout>
       </body>
-
     </html>
   );
 }

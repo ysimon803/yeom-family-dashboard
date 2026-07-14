@@ -3,60 +3,106 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import MissionCard from "./MissionCard";
+
+type Props = {
+  missionCurrent?: number;
+  missionTarget?: number;
+};
+
 const menus = [
   {
-    href: "/",
-    label: "🏠 Dashboard",
+    title: "Dashboard",
+    href: "/dashboard",
+    icon: "🏠",
   },
   {
+    title: "Move Planner",
+    href: "/move",
+    icon: "🚚",
+  },
+  {
+    title: "Future Planner",
+    href: "/future",
+    icon: "📈",
+  },
+  {
+    title: "Investments",
     href: "/investments",
-    label: "📈 Investments",
+    icon: "💼",
   },
   {
+    title: "Retirement",
+    href: "/retirement",
+    icon: "💰",
+  },
+  {
+    title: "Reports",
+    href: "/reports",
+    icon: "📄",
+  },
+  {
+    title: "Settings",
     href: "/settings",
-    label: "⚙️ Settings",
+    icon: "⚙️",
   },
-  {
-  href: "/rsu",
-  label: "💼 RSU Planner",
-},
 ];
 
-export default function Sidebar() {
+export default function Sidebar({
+  missionCurrent = 0,
+  missionTarget = 1,
+}: Props) {
+
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 min-h-screen bg-slate-900 text-white">
+    <aside className="flex h-screen w-72 flex-col border-r bg-white p-6 shadow-sm">
 
-      <div className="p-8">
+      <div className="mb-10">
 
-        <h1 className="text-2xl font-bold">
-
-          💰 WealthOS
-
+        <h1 className="text-3xl font-bold">
+          WealthOS
         </h1>
+
+        <p className="mt-2 text-sm text-slate-500">
+          Financial Operating System
+        </p>
 
       </div>
 
-      <nav className="space-y-2 px-4">
+      <nav className="flex flex-col gap-2">
 
-        {menus.map((menu) => (
+        {menus.map((menu) => {
 
-          <Link
-            key={menu.href}
-            href={menu.href}
-            className={`block rounded-xl px-4 py-3 transition ${
-              pathname === menu.href
-                ? "bg-blue-600"
-                : "hover:bg-slate-700"
-            }`}
-          >
-            {menu.label}
-          </Link>
+          const active = pathname === menu.href;
 
-        ))}
+          return (
+            <Link
+              key={menu.href}
+              href={menu.href}
+              className={`rounded-xl px-4 py-3 text-lg transition ${
+                active
+                  ? "bg-blue-600 text-white font-semibold"
+                  : "text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              <span className="mr-3">
+                {menu.icon}
+              </span>
+
+              {menu.title}
+
+            </Link>
+          );
+
+        })}
 
       </nav>
+
+      <MissionCard
+        current={missionCurrent}
+        target={missionTarget}
+      />
 
     </aside>
   );

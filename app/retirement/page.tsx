@@ -1,9 +1,9 @@
-export default function SettingsPage() {
+export default function RetirementPage() {
   return (
     <div className="space-y-6">
 
       <h1 className="text-4xl font-bold">
-        ⚙️ Settings
+        💰 Retirement
       </h1>
 
     </div>

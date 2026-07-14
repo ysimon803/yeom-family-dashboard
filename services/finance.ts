@@ -1,14 +1,5 @@
-export type FinancialProfile = {
-  home_value: number;
-  mortgage: number;
-  cash: number;
-  monthly_income: number;
-};
-
-export type Investment = {
-  ticker: string;
-  balance: number;
-};
+import type { FinancialProfile } from "@/types/financial";
+import type { Investment } from "@/types/investment";
 
 export function calculateInvestmentTotal(
   investments: Investment[]
