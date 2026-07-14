@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { supabase } from "@/lib/supabase";
 
-import TodaySnapshot from "@/components/dashboard/TodaySnapshot";
-import QuickActions from "@/components/dashboard/QuickActions";
-import RecentActivity from "@/components/dashboard/RecentActivity";
-import MissionProgress from "@/components/dashboard/MissionProgress";
+import WealthSummary from "@/components/dashboard/WealthSummary";
+import GoalProgress from "@/components/dashboard/GoalProgress";
+import AICommentary from "@/components/dashboard/AICommentary";
 
 import {
   calculateInvestmentTotal,
@@ -16,6 +16,7 @@ import {
 import type { FinancialProfile } from "@/types/financial";
 import type { Investment } from "@/types/investment";
 
+
 export default function DashboardPage() {
 
   const [profile, setProfile] =
@@ -24,9 +25,16 @@ export default function DashboardPage() {
   const [investments, setInvestments] =
     useState<Investment[]>([]);
 
+  const [loading, setLoading] =
+    useState(true);
+
+
   useEffect(() => {
+
     loadData();
+
   }, []);
+
 
   async function loadData() {
 
@@ -37,21 +45,40 @@ export default function DashboardPage() {
         .eq("id", 1)
         .single();
 
+
     const { data: investmentData } =
       await supabase
         .from("investments")
         .select("*");
 
+
     setProfile(profileData);
-    setInvestments(investmentData ?? []);
+
+    setInvestments(
+      investmentData ?? []
+    );
+
+    setLoading(false);
+
   }
 
-  if (!profile) {
-    return <div>Loading...</div>;
+
+  if (loading || !profile) {
+
+    return (
+      <div className="p-8">
+        Loading...
+      </div>
+    );
+
   }
+
 
   const investmentTotal =
-    calculateInvestmentTotal(investments);
+    calculateInvestmentTotal(
+      investments
+    );
+
 
   const netWorth =
     calculateNetWorth(
@@ -59,31 +86,136 @@ export default function DashboardPage() {
       investments
     );
 
-  const houseFund =
-    profile.cash + investmentTotal;
 
-  const targetDownPayment =
+  const homeEquity =
+    profile.home_value -
+    profile.mortgage;
+
+
+  const moveTarget =
     profile.target_home_price *
-    (profile.down_payment_percent / 100);
+    (
+      profile.down_payment_percent /
+      100
+    );
+
+
+  const moveCurrent =
+    profile.cash +
+    investmentTotal;
+
+
+  const moveProgress =
+    Math.min(
+      (moveCurrent / moveTarget) * 100,
+      100
+    );
+
+
+  const fiTarget =
+    2000000;
+
+
+  const fiProgress =
+    Math.min(
+      (netWorth / fiTarget) * 100,
+      100
+    );
+
+
+  const investmentRatio =
+    netWorth > 0
+      ? investmentTotal / netWorth
+      : 0;
+
+
+  const goals = [
+
+    {
+      title: "2028 Home Move",
+      icon: "🏠",
+      current: moveCurrent,
+      target: moveTarget,
+    },
+
+
+    {
+      title: "Financial Independence",
+      icon: "🔥",
+      current: netWorth,
+      target: fiTarget,
+    },
+
+  ];
+
 
   return (
 
-    <div className="space-y-8">
+    <div className="space-y-8 p-8">
 
-      <TodaySnapshot
+
+      <h1 className="text-4xl font-bold">
+
+        🏠 WealthOS Dashboard
+
+      </h1>
+
+
+
+      <WealthSummary
+
         netWorth={netWorth}
+
         investments={investmentTotal}
-        houseFund={houseFund}
+
+        cash={profile.cash}
+
+        homeEquity={homeEquity}
+
       />
 
-      <QuickActions />
 
-      <MissionProgress
-        current={houseFund}
-        target={targetDownPayment}
+
+      <GoalProgress
+
+        goals={goals}
+
       />
 
-      <RecentActivity />
+
+
+      <AICommentary
+
+        netWorth={netWorth}
+
+        investmentRatio={investmentRatio}
+
+        moveProgress={moveProgress}
+
+        fiProgress={fiProgress}
+
+      />
+
+
+
+      <div className="rounded-2xl bg-white p-8 shadow">
+
+        <h2 className="text-2xl font-bold">
+
+          Financial Overview
+
+        </h2>
+
+
+        <p className="mt-4 text-slate-600">
+
+          Your complete financial operating system.
+
+        </p>
+
+
+      </div>
+
 
     </div>
 

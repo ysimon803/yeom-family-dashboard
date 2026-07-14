@@ -9,9 +9,14 @@ import AllocationChart from "@/components/investments/AllocationChart";
 import EquityDashboard from "@/components/investments/EquityDashboard";
 import PerformanceCard from "@/components/investments/PerformanceCard";
 import TargetAllocation from "@/components/investments/TargetAllocation";
+import RebalanceAdvisor from "@/components/investments/RebalanceAdvisor";
 import AccountGroup from "@/components/investments/AccountGroup";
 
-import { calculateInvestmentTotal } from "@/services/finance";
+import {
+  calculateInvestmentTotal,
+  calculateAllocation,
+} from "@/services/finance";
+
 import { groupByAccount } from "@/services/investments/groupByAccount";
 import { groupByCategory } from "@/services/investments/groupByCategory";
 
@@ -60,6 +65,7 @@ export default function InvestmentsPage() {
     }
 
     setLoading(false);
+
   }
 
   if (loading || !profile) {
@@ -84,6 +90,9 @@ export default function InvestmentsPage() {
 
   const groupedCategory =
     groupByCategory(investments);
+
+  const allocation =
+    calculateAllocation(investments);
 
   return (
 
@@ -116,6 +125,10 @@ export default function InvestmentsPage() {
       />
 
       <TargetAllocation />
+
+      <RebalanceAdvisor
+        allocation={allocation}
+      />
 
       <div className="space-y-6">
 

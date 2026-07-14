@@ -5,6 +5,8 @@ export type FinancialProfile = {
   mortgage: number;
   cash: number;
 
+  monthly_income: number;
+
   target_home_price: number;
   down_payment_percent: number;
 
