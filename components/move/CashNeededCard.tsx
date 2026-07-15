@@ -1,77 +1,74 @@
+"use client";
+
+import { formatCurrency } from "@/lib/formatCurrency";
+
 type Props = {
   targetPrice: number;
   downPercent: number;
+  closingPercent?: number;
 };
 
 export default function CashNeededCard({
   targetPrice,
   downPercent,
+  closingPercent = 3,
 }: Props) {
+  const downPayment =
+    targetPrice * (downPercent / 100);
 
-  const down =
-    (targetPrice * downPercent) / 100;
+  const closingCost =
+    targetPrice * (closingPercent / 100);
 
-  const closing =
-    targetPrice * 0.03;
-
-  const total =
-    down + closing;
+  const totalNeeded =
+    downPayment + closingCost;
 
   return (
-
     <div className="rounded-2xl bg-white p-8 shadow">
-
       <h2 className="text-2xl font-bold">
         💵 Cash Needed
       </h2>
 
-      <div className="mt-8 space-y-4">
-
+      <div className="mt-6 space-y-4">
         <Row
-          label="Down Payment"
-          value={down}
+          label="Target Home Price"
+          value={targetPrice}
         />
 
         <Row
-          label="Closing Cost"
-          value={closing}
+          label={`Down Payment (${downPercent}%)`}
+          value={downPayment}
         />
 
         <Row
-          label="Total Needed"
-          value={total}
+          label={`Closing Cost (${closingPercent}%)`}
+          value={closingCost}
         />
 
+        <hr />
+
+        <Row
+          label="Total Cash Needed"
+          value={totalNeeded}
+        />
       </div>
-
     </div>
-
   );
-
 }
-
-type RowProps = {
-  label: string;
-  value: number;
-};
 
 function Row({
   label,
   value,
-}: RowProps) {
-
+}: {
+  label: string;
+  value: number;
+}) {
   return (
-
     <div className="flex justify-between">
-
       <span>{label}</span>
 
       <span className="font-bold">
-        ${Math.round(value).toLocaleString()}
+        {formatCurrency(value)}
       </span>
-
     </div>
-
   );
-
 }

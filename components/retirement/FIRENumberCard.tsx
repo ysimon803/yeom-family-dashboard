@@ -3,52 +3,45 @@
 import { formatCurrency } from "@/lib/formatCurrency";
 
 type Props = {
-  homeValue: number;
-  mortgage: number;
-  sellingCostPercent?: number;
+  annualExpense: number;
 };
 
-export default function HomeSaleSimulator({
-  homeValue,
-  mortgage,
-  sellingCostPercent = 6,
+export default function FIRENumberCard({
+  annualExpense,
 }: Props) {
-  const sellingCost =
-    homeValue * (sellingCostPercent / 100);
+  const fireNumber =
+    annualExpense * 25;
 
-  const netProceeds =
-    homeValue -
-    sellingCost -
-    mortgage;
+  const monthlyIncome =
+    annualExpense / 12;
 
   return (
     <div className="rounded-2xl bg-white p-8 shadow">
       <h2 className="text-2xl font-bold">
-        🏡 Home Sale Simulator
+        🔥 FIRE Number
       </h2>
 
       <div className="mt-6 space-y-4">
         <Row
-          label="Current Home Value"
-          value={homeValue}
+          label="Annual Expenses"
+          value={annualExpense}
         />
 
         <Row
-          label={`Selling Cost (${sellingCostPercent}%)`}
-          value={sellingCost}
-        />
-
-        <Row
-          label="Mortgage Payoff"
-          value={mortgage}
+          label="Monthly Expenses"
+          value={monthlyIncome}
         />
 
         <hr />
 
         <Row
-          label="Net Sale Proceeds"
-          value={netProceeds}
+          label="Target FIRE Number"
+          value={fireNumber}
         />
+      </div>
+
+      <div className="mt-8 rounded-xl bg-orange-100 p-4 text-center text-lg font-bold text-orange-700">
+        25× Annual Expenses Rule
       </div>
     </div>
   );

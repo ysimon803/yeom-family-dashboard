@@ -3,51 +3,44 @@
 import { formatCurrency } from "@/lib/formatCurrency";
 
 type Props = {
-  homeValue: number;
-  mortgage: number;
-  sellingCostPercent?: number;
+  income: number;
+  savings: number;
 };
 
-export default function HomeSaleSimulator({
-  homeValue,
-  mortgage,
-  sellingCostPercent = 6,
+export default function MonthlyCashFlowCard({
+  income,
+  savings,
 }: Props) {
-  const sellingCost =
-    homeValue * (sellingCostPercent / 100);
-
-  const netProceeds =
-    homeValue -
-    sellingCost -
-    mortgage;
+  const expenses =
+    income - savings;
 
   return (
     <div className="rounded-2xl bg-white p-8 shadow">
       <h2 className="text-2xl font-bold">
-        🏡 Home Sale Simulator
+        💳 Monthly Cash Flow
       </h2>
 
       <div className="mt-6 space-y-4">
         <Row
-          label="Current Home Value"
-          value={homeValue}
+          label="Monthly Income"
+          value={income}
         />
 
         <Row
-          label={`Selling Cost (${sellingCostPercent}%)`}
-          value={sellingCost}
+          label="Monthly Savings"
+          value={savings}
         />
 
         <Row
-          label="Mortgage Payoff"
-          value={mortgage}
+          label="Monthly Expenses"
+          value={expenses}
         />
 
         <hr />
 
         <Row
-          label="Net Sale Proceeds"
-          value={netProceeds}
+          label="Cash Flow"
+          value={income - expenses}
         />
       </div>
     </div>

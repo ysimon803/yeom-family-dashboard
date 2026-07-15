@@ -1,202 +1,126 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
 import { supabase } from "@/lib/supabase";
+import SafeWithdrawalCard from "@/components/retirement/SafeWithdrawalCard";
+import RetirementSummaryCard from "@/components/retirement/RetirementSummaryCard";
+import RetirementProjectionChart from "@/components/retirement/RetirementProjectionChart";
+import RetirementGoalCard from "@/components/retirement/RetirementGoalCard";
+import FIRENumberCard from "@/components/retirement/FIRENumberCard";
+import RetirementIncomeCard from "@/components/retirement/RetirementIncomeCard";
+import RetirementReadinessCard from "@/components/retirement/RetirementReadinessCard";
 
-import RetirementForecast from "@/components/retirement/RetirementForecast";
-import AccountBreakdown from "@/components/retirement/AccountBreakdown";
-import FIProgress from "@/components/retirement/FIProgress";
-import RetirementIncome from "@/components/retirement/RetirementIncome";
-
+type FinancialProfile = {
+  retirement_assets: number;
+  annual_retirement_contribution: number;
+  target_retirement: number;
+  current_age: number;
+  retirement_age: number;
+};
 
 export default function RetirementPage() {
-
-  const [accounts, setAccounts] =
-    useState<
-      {
-        name: string;
-        balance: number;
-      }[]
-    >([]);
+  const [profile, setProfile] =
+    useState<FinancialProfile | null>(null);
 
   const [loading, setLoading] =
     useState(true);
 
-
   useEffect(() => {
-
-    loadData();
-
+    loadProfile();
   }, []);
 
-
-  async function loadData() {
-
-    const { data } =
+  async function loadProfile() {
+    const { data, error } =
       await supabase
-        .from("investments")
-        .select("*");
+        .from("financial_profile")
+        .select("*")
+        .limit(1)
+        .single();
 
-
-    const retirementAccounts = [
-
-      {
-        name: "TI 401(k)",
-        balance:
-          data
-            ?.filter(
-              (item) =>
-                item.account === "TI 401k"
-            )
-            .reduce(
-              (sum, item) =>
-                sum + Number(item.balance),
-              0
-            ) ?? 0,
-      },
-
-
-      {
-        name: "AA 401(k)",
-        balance:
-          data
-            ?.filter(
-              (item) =>
-                item.account === "AA 401k"
-            )
-            .reduce(
-              (sum, item) =>
-                sum + Number(item.balance),
-              0
-            ) ?? 0,
-      },
-
-
-      {
-        name: "Roth IRA",
-        balance:
-          data
-            ?.filter(
-              (item) =>
-                item.account === "Roth IRA"
-            )
-            .reduce(
-              (sum, item) =>
-                sum + Number(item.balance),
-              0
-            ) ?? 0,
-      },
-
-
-      {
-        name: "HSA",
-        balance:
-          data
-            ?.filter(
-              (item) =>
-                item.account === "HSA"
-            )
-            .reduce(
-              (sum, item) =>
-                sum + Number(item.balance),
-              0
-            ) ?? 0,
-      },
-
-    ];
-
-
-    setAccounts(
-      retirementAccounts
-    );
+    if (!error && data) {
+      setProfile(data as FinancialProfile);
+    }
 
     setLoading(false);
-
   }
 
-
   if (loading) {
-
     return (
       <div className="p-8">
         Loading...
       </div>
     );
-
   }
 
-
-  const totalAssets =
-    accounts.reduce(
-      (sum, item) =>
-        sum + item.balance,
-      0
+  if (!profile) {
+    return (
+      <div className="p-8">
+        No financial profile found.
+      </div>
     );
+  }
 
-
-  const fiTarget =
-    2000000;
-
+  const annualExpense = 80000;
+  const safeWithdrawal =
+  profile.retirement_assets * 0.04;
 
   return (
-
     <div className="space-y-8 p-8">
+      <div>
+        <h1 className="text-4xl font-bold">
+          🏖 Retirement Planner
+        </h1>
 
+        <p className="mt-2 text-slate-500">
+          Retirement planning dashboard
+        </p>
+      </div>
 
-      <h1 className="text-4xl font-bold">
-
-        💰 Retirement Planner
-
-      </h1>
-
-
-
-      <AccountBreakdown
-
-        accounts={accounts}
-
+      <RetirementSummaryCard
+        retirementAssets={profile.retirement_assets}
+        annualContribution={
+          profile.annual_retirement_contribution
+        }
+        targetRetirement={
+          profile.target_retirement
+        }
       />
 
-
-
-      <FIProgress
-
-        currentAssets={totalAssets}
-
-        targetAssets={fiTarget}
-
+      <RetirementProjectionChart
+        currentBalance={
+          profile.retirement_assets
+        }
+        annualContribution={
+          profile.annual_retirement_contribution
+        }
+        currentAge={profile.current_age}
+        retirementAge={profile.retirement_age}
       />
 
-
-
-      <RetirementIncome
-
-        retirementAssets={totalAssets}
-
-        withdrawalRate={4}
-
-        socialSecurity={3000}
-
+      <RetirementGoalCard
+        currentBalance={
+          profile.retirement_assets
+        }
+        targetBalance={
+          profile.target_retirement
+        }
       />
 
-
-
-      <RetirementForecast
-
-        currentAssets={totalAssets}
-
-        monthlyContribution={3000}
-
-        yearlyGrowth={7}
-
-        years={30}
-
+      <FIRENumberCard
+        annualExpense={annualExpense}
       />
+      <SafeWithdrawalCard
+        retirementAssets={profile.retirement_assets}
+      /> 
+      <RetirementIncomeCard
+        retirementAssets={profile.retirement_assets}
+        annualExpense={annualExpense}
+      />  
 
-
+      <RetirementReadinessCard
+        currentBalance={profile.retirement_assets}
+        targetBalance={profile.target_retirement}
+      />
     </div>
-
   );
-
 }

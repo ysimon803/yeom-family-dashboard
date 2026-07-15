@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 
-import { supabase } from "@/lib/supabase";
+import { useMovePlanner } from "@/hooks/useMovePlanner";
+import {
+  calculateCurrentNetWorth,
+  calculateFutureHomeValue,
+  calculateHomeSaleProceeds,
+} from "@/services/move/calculations";
 
+import {
+  getMortgageSummary,
+} from "@/services/move/mortgageSummary";
 import MoveTimeline from "@/components/move/MoveTimeline";
 import MoveChecklist from "@/components/move/MoveChecklist";
 import MoveSettings from "@/components/move/MoveSettings";
@@ -22,6 +30,7 @@ import HomeSaleForecast from "@/components/move/HomeSaleForecast";
 import HousePlanner from "@/components/dashboard/HousePlanner";
 import MortgageCalculator from "@/components/dashboard/MortgageCalculator";
 import HomeEquityForecast from "@/components/dashboard/HomeEquityForecast";
+import SellBuyGapSimulator from "@/components/move/SellBuyGapSimulator";
 
 import {
   calculateInvestmentTotal,
@@ -37,176 +46,63 @@ import type { Investment } from "@/types/investment";
 
 
 export default function MovePage() {
+  const {
+  profile,
+  investments,
+  loading,
 
+  homePrice,
+  setHomePrice,
 
-  const [profile, setProfile] =
-    useState<FinancialProfile | null>(null);
+  monthlySavings,
+  setMonthlySavings,
 
+  returnRate,
+  setReturnRate,
 
-  const [investments, setInvestments] =
-    useState<Investment[]>([]);
-
-
-  const [loading, setLoading] =
-    useState(true);
-
-
-  const [homePrice, setHomePrice] =
-    useState(0);
-
-
-  const [monthlySavings, setMonthlySavings] =
-    useState(0);
-
-
-  const [returnRate, setReturnRate] =
-    useState(0);
-
-
-
-  useEffect(() => {
-
-    loadData();
-
-  }, []);
-
-
-
-  async function loadData() {
-
-
-    const { data: profileData } =
-      await supabase
-        .from("financial_profile")
-        .select("*")
-        .eq("id", 1)
-        .single();
-
-
-
-    const { data: investmentData } =
-      await supabase
-        .from("investments")
-        .select("*");
-
-
-
-    setProfile(profileData);
-
-
-    setInvestments(
-      investmentData ?? []
-    );
-
-
-    setHomePrice(
-      profileData.move_home_price ??
-      profileData.target_home_price
-    );
-
-
-    setMonthlySavings(
-      profileData.move_monthly_savings ??
-      3000
-    );
-
-
-    setReturnRate(
-      profileData.move_return_rate ??
-      5
-    );
-
-
-    setLoading(false);
-
-  }
-
-
-
-  async function saveScenario(
-    key:string,
-    value:number
-  ) {
-
-
-    const updateData:any = {};
-
-    updateData[key] = value;
-
-
-    await supabase
-      .from("financial_profile")
-      .update(updateData)
-      .eq("id",1);
-
-  }
-
-
-
+  saveScenario,
+} = useMovePlanner();
   if (loading || !profile) {
-
     return (
-
-      <div className="p-8">
-
+      <div className="p-8 text-lg">
         Loading...
-
       </div>
-
     );
-
   }
-
-
-
   const investmentTotal =
     calculateInvestmentTotal(
       investments
     );
 
-
-
-  const currentNetWorth =
-
-    (
-      profile.home_value -
-      profile.mortgage
-    )
-    +
-    profile.cash
-    +
-    investmentTotal;
-
-
-
-  const monthlyMortgage =
-    calculateMonthlyMortgage(
-      homePrice,
-      profile.down_payment_percent
-    );
-
-
+  
 
   // 2028 예상 Home Sale Proceeds
   // 현재 집 3% 성장 + 판매비 6% - Mortgage
 
-  const futureHomeValue =
-    profile.home_value *
-    Math.pow(
-      1.03,
-      2
-    );
+  const currentNetWorth =
+  calculateCurrentNetWorth(
+    profile.home_value,
+    profile.mortgage,
+    profile.cash,
+    investmentTotal
+  );
+  const {
+    monthlyMortgage,
+  } = getMortgageSummary(
+    homePrice,
+    profile.down_payment_percent
+  );
 
+const futureHomeValue =
+  calculateFutureHomeValue(
+    profile.home_value
+  );
 
-  const homeSaleProceeds =
-
-    futureHomeValue
-    -
-    (
-      futureHomeValue * 0.06
-    )
-    -
-    profile.mortgage;
+const homeSaleProceeds =
+  calculateHomeSaleProceeds(
+    futureHomeValue,
+    profile.mortgage
+  );
 
 
 
@@ -483,7 +379,11 @@ export default function MovePage() {
             }
 
           />
-
+          <SellBuyGapSimulator
+            homeSaleProceeds={homeSaleProceeds}
+            targetHomePrice={homePrice}
+            downPaymentPercent={profile.down_payment_percent}
+          />
 
 
           <MortgageScenario
