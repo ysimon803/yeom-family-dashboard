@@ -1,123 +1,110 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useFinancialData } from "@/hooks/useFinancialData";
 
-import { supabase } from "@/lib/supabase";
+import AIAdvisorCard from "@/components/advisor/AIAdvisorCard";
+import PortfolioAnalysisCard from "@/components/advisor/PortfolioAnalysisCard";
+import HomePurchaseAdvisorCard from "@/components/advisor/HomePurchaseAdvisorCard";
+import EmergencyFundAdvisorCard from "@/components/advisor/EmergencyFundAdvisorCard";
+import PriorityRecommendationCard from "@/components/advisor/PriorityRecommendationCard";
 
-import SavingsRateCard from "@/components/analytics/SavingsRateCard";
-import MonthlyCashFlowCard from "@/components/analytics/MonthlyCashFlowCard";
+export default function AdvisorPage() {
+  const { profile, loading, error } = useFinancialData();
 
-import type { FinancialProfile } from "@/types/financial";
-import ExpenseBreakdownCard from "@/components/analytics/ExpenseBreakdownCard";
-import IncomeExpenseTrendCard from "@/components/analytics/IncomeExpenseTrendCard";
-import FinancialRatiosCard from "@/components/analytics/FinancialRatiosCard";
-import YearlyFinancialSummaryCard
-from "@/components/analytics/YearlyFinancialSummaryCard";
-
-export default function AnalyticsPage() {
-  const [profile, setProfile] =
-    useState<FinancialProfile | null>(null);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  async function loadData() {
-    const { data } =
-      await supabase
-        .from("financial_profile")
-        .select("*")
-        .eq("id", 1)
-        .single();
-
-    setProfile(data);
-
-    setLoading(false);
+  if (loading) {
+    return <div className="p-8">Loading...</div>;
   }
 
-  if (loading || !profile) {
+  if (error) {
     return (
       <div className="p-8">
-        Loading...
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+          {error}
+        </div>
       </div>
     );
   }
 
-    const monthlyIncome =
-        profile.monthly_income;
+  if (!profile) {
+    return (
+      <div className="p-8">
+        No financial profile found.
+      </div>
+    );
+  }
 
-    const monthlySaving =
-    3000;
+  const retirement = Number(profile.retirement_assets ?? 0);
+  const rsu = Number(profile.rsu_value ?? 0);
+  const stockOptions = Number(profile.stock_option_value ?? 0);
+  const cash = Number(profile.cash ?? 0);
+  const monthlyIncome = Number(profile.monthly_income ?? 0);
+  const targetHomePrice = Number(profile.target_home_price ?? 0);
+  const downPaymentPercent = Number(
+    profile.down_payment_percent ?? 0
+  );
 
-    const monthlyExpenses =
-    monthlyIncome - monthlySaving;
-    
-    const savingsRate =
-    (monthlySaving / monthlyIncome) * 100;
+  const employerEquity = rsu + stockOptions;
+  const portfolioTotal = retirement + employerEquity + cash;
 
-    const investmentRate =
-    (monthlySaving / monthlyIncome) * 100;
+  const companyRisk =
+    portfolioTotal > 0
+      ? (employerEquity / portfolioTotal) * 100
+      : 0;
 
-    const debtRatio =
-    (profile.mortgage / profile.home_value) * 100;
-    
-    const annualIncome =
-    monthlyIncome * 12;
+  const estimatedMonthlyExpense = Math.max(
+    monthlyIncome * 0.6,
+    4000
+  );
 
-    const annualSavings =
-    monthlySaving * 12;
+  const emergencyMonths =
+    estimatedMonthlyExpense > 0
+      ? cash / estimatedMonthlyExpense
+      : 0;
 
-    const annualExpenses =
-    monthlyExpenses * 12;
+  const targetDownPayment =
+    targetHomePrice * (downPaymentPercent / 100);
 
-    const estimatedGrowth =
-    18000;
+  const houseProgress =
+    targetDownPayment > 0
+      ? (cash / targetDownPayment) * 100
+      : 0;
 
   return (
     <div className="space-y-8 p-8">
       <div>
         <h1 className="text-4xl font-bold">
-          📊 Analytics
+          🤖 AI Financial Advisor
         </h1>
 
         <p className="mt-2 text-slate-500">
-          Financial analytics dashboard
+          Personalized financial insights
         </p>
       </div>
 
-      <SavingsRateCard
-        income={monthlyIncome}
-        savings={monthlySaving}
+      <AIAdvisorCard />
+
+      <PortfolioAnalysisCard
+        retirement={retirement}
+        rsu={rsu}
+        stockOptions={stockOptions}
+        cash={cash}
       />
 
-      <MonthlyCashFlowCard
-        income={monthlyIncome}
-        savings={monthlySaving}
+      <HomePurchaseAdvisorCard
+        cash={cash}
+        targetHomePrice={targetHomePrice}
+        downPaymentPercent={downPaymentPercent}
       />
-      <ExpenseBreakdownCard
-        housing={3439}
-        transportation={1000}
-        food={1200}
-        insurance={500}
-        other={2902}
-        />
-      <IncomeExpenseTrendCard
-        income={monthlyIncome}
-        expenses={monthlyExpenses}
+
+      <EmergencyFundAdvisorCard
+        cash={cash}
+        monthlyExpense={estimatedMonthlyExpense}
       />
-      <FinancialRatiosCard
-        savingsRate={savingsRate}
-        debtRatio={debtRatio}
-        investmentRate={investmentRate}
-      />
-      <YearlyFinancialSummaryCard
-        annualIncome={annualIncome}
-        annualSavings={annualSavings}
-        annualExpenses={annualExpenses}
-        estimatedGrowth={estimatedGrowth}
+
+      <PriorityRecommendationCard
+        companyRisk={companyRisk}
+        emergencyMonths={emergencyMonths}
+        houseProgress={houseProgress}
       />
     </div>
   );

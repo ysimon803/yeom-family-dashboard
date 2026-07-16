@@ -1,7 +1,7 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
-import type { FinancialProfile } from "@/types/financialProfile";
+import type { FinancialProfile } from "@/types/financial";
 
 type Props = {
   profile: FinancialProfile;

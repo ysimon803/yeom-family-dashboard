@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { getFinancialProfile } from "@/services/settings/getFinancialProfile";
 import { getInvestments } from "@/services/investments/getInvestments";
@@ -18,7 +18,13 @@ export function useFinancialData() {
   const [loading, setLoading] =
     useState(true);
 
-  async function reload() {
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
     try {
       const profileData =
         await getFinancialProfile();
@@ -28,19 +34,23 @@ export function useFinancialData() {
 
       setProfile(profileData);
       setInvestments(investmentData);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load financial data.");
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     reload();
-  }, []);
+  }, [reload]);
 
   return {
     profile,
     investments,
     loading,
+    error,
     reload,
   };
 }

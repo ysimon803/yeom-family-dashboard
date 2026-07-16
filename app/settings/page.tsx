@@ -24,6 +24,9 @@ export default function SettingsPage() {
     emergency_fund: 15000,
     net_worth: 707301,
 
+    home_value: 430000,
+    mortgage: 414047,
+    
     retirement_assets: 232534,
     rsu_value: 162287,
     stock_option_value: 92480,

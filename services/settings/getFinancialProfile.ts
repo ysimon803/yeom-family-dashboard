@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { FinancialProfile } from "@/types/financialProfile";
+import type { FinancialProfile } from "@/types/financial";
 
 export async function getFinancialProfile() {
   const { data, error } = await supabase

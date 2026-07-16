@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-import { supabase } from "@/lib/supabase";
+import { useFinancialData } from "@/hooks/useFinancialData";
 
 import AIAdvisorCard from "@/components/advisor/AIAdvisorCard";
 import PortfolioAnalysisCard from "@/components/advisor/PortfolioAnalysisCard";
@@ -10,51 +8,19 @@ import HomePurchaseAdvisorCard from "@/components/advisor/HomePurchaseAdvisorCar
 import EmergencyFundAdvisorCard from "@/components/advisor/EmergencyFundAdvisorCard";
 import PriorityRecommendationCard from "@/components/advisor/PriorityRecommendationCard";
 
-import type { FinancialProfile } from "@/types/financial";
-import type { Investment } from "@/types/investment";
-
-import { calculateInvestmentTotal } from "@/services/finance";
-
 export default function AdvisorPage() {
-  const [profile, setProfile] =
-    useState<FinancialProfile | null>(null);
-
-  const [investments, setInvestments] =
-    useState<Investment[]>([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  async function loadData() {
-    const { data: profileData } =
-      await supabase
-        .from("financial_profile")
-        .select("*")
-        .eq("id", 1)
-        .single();
-
-    const { data: investmentData } =
-      await supabase
-        .from("investments")
-        .select("*");
-
-    setProfile(profileData);
-
-    setInvestments(
-      investmentData ?? []
-    );
-
-    setLoading(false);
-  }
+  const { profile, loading, error } = useFinancialData();
 
   if (loading) {
+    return <div className="p-8">Loading...</div>;
+  }
+
+  if (error) {
     return (
       <div className="p-8">
-        Loading...
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+          {error}
+        </div>
       </div>
     );
   }
@@ -67,37 +33,41 @@ export default function AdvisorPage() {
     );
   }
 
-  const investmentTotal =
-    calculateInvestmentTotal(
-      investments
-    );
-    const companyRisk =
-  (
-    (Number(profile.rsu_value ?? 0) +
-      Number(profile.stock_option_value ?? 0)) /
-    (
-      profile.retirement_assets +
-      Number(profile.rsu_value ?? 0) +
-      Number(profile.stock_option_value ?? 0) +
-      profile.cash
-    )
-  ) *
-  100;
+  const retirement = Number(profile.retirement_assets ?? 0);
+  const rsu = Number(profile.rsu_value ?? 0);
+  const stockOptions = Number(profile.stock_option_value ?? 0);
+  const cash = Number(profile.cash ?? 0);
+  const monthlyIncome = Number(profile.monthly_income ?? 0);
+  const targetHomePrice = Number(profile.target_home_price ?? 0);
+  const downPaymentPercent = Number(
+    profile.down_payment_percent ?? 0
+  );
 
-const emergencyMonths =
-  profile.cash /
-  Math.max(
-    profile.monthly_income * 0.6,
+  const employerEquity = rsu + stockOptions;
+  const portfolioTotal = retirement + employerEquity + cash;
+
+  const companyRisk =
+    portfolioTotal > 0
+      ? (employerEquity / portfolioTotal) * 100
+      : 0;
+
+  const estimatedMonthlyExpense = Math.max(
+    monthlyIncome * 0.6,
     4000
   );
 
-const houseProgress =
-  (profile.cash /
-    (
-      profile.target_home_price *
-      (profile.down_payment_percent / 100)
-    )) *
-  100;
+  const emergencyMonths =
+    estimatedMonthlyExpense > 0
+      ? cash / estimatedMonthlyExpense
+      : 0;
+
+  const targetDownPayment =
+    targetHomePrice * (downPaymentPercent / 100);
+
+  const houseProgress =
+    targetDownPayment > 0
+      ? (cash / targetDownPayment) * 100
+      : 0;
 
   return (
     <div className="space-y-8 p-8">
@@ -114,35 +84,23 @@ const houseProgress =
       <AIAdvisorCard />
 
       <PortfolioAnalysisCard
-        retirement={
-          profile.retirement_assets
-        }
-        rsu={
-          Number(profile.rsu_value ?? 0)
-        }
-        stockOptions={
-          Number(profile.stock_option_value ?? 0)
-        }
-        cash={
-          profile.cash
-        }
+        retirement={retirement}
+        rsu={rsu}
+        stockOptions={stockOptions}
+        cash={cash}
       />
 
       <HomePurchaseAdvisorCard
-        cash={profile.cash}
-        targetHomePrice={profile.target_home_price}
-        downPaymentPercent={profile.down_payment_percent}
+        cash={cash}
+        targetHomePrice={targetHomePrice}
+        downPaymentPercent={downPaymentPercent}
       />
 
       <EmergencyFundAdvisorCard
-        cash={profile.cash}
-        monthlyExpense={
-          Math.max(
-            profile.monthly_income * 0.6,
-            4000
-          )
-        }
+        cash={cash}
+        monthlyExpense={estimatedMonthlyExpense}
       />
+
       <PriorityRecommendationCard
         companyRisk={companyRisk}
         emergencyMonths={emergencyMonths}
