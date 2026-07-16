@@ -12,4 +12,6 @@ export type FinancialProfile = {
 
   rsu_value: number;
   stock_option_value: number;
+
+  retirement_assets: number;
 };
