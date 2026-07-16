@@ -24,15 +24,30 @@ export default function PortfolioAnalysisCard({
   const companyRisk =
     ((rsu + stockOptions) / total) * 100;
 
-  let message =
-    "Your portfolio is well diversified.";
+  let message = "";
+  let color = "";
+  let level = "";
 
-  if (companyRisk > 40) {
+  if (companyRisk >= 60) {
+    level = "Very High";
+    color = "text-red-600";
     message =
-      "High concentration in Texas Instruments equity. Consider diversifying as RSUs vest.";
-  } else if (companyRisk > 25) {
+      "Your portfolio is heavily concentrated in Texas Instruments stock. Consider gradually diversifying as RSUs vest and options are exercised.";
+  } else if (companyRisk >= 40) {
+    level = "High";
+    color = "text-orange-500";
     message =
-      "Moderate employer stock concentration. Continue monitoring.";
+      "Employer stock concentration is relatively high. A gradual diversification strategy may reduce risk.";
+  } else if (companyRisk >= 25) {
+    level = "Moderate";
+    color = "text-yellow-600";
+    message =
+      "Your portfolio has a moderate employer stock allocation. Continue monitoring.";
+  } else {
+    level = "Low";
+    color = "text-green-600";
+    message =
+      "Your portfolio is well diversified.";
   }
 
   return (
@@ -72,7 +87,10 @@ export default function PortfolioAnalysisCard({
           <div className="mt-2 text-3xl font-bold">
             {companyRisk.toFixed(1)}%
           </div>
-
+          <div className={`mt-1 font-bold ${color}`}>
+            {level}
+          </div>
+          
           <p className="mt-4 text-sm">
             {message}
           </p>

@@ -64,8 +64,11 @@ export default function EditTransactionModal({
         amount: Number(amount),
       });
 
-      onSaved();
-      onClose();
+      alert("✅ Transaction updated successfully.");
+
+    onSaved();
+    onClose();
+    
     } catch (error) {
       console.error(error);
       alert("Failed to update transaction.");

@@ -7,7 +7,7 @@ import TransactionSummaryCard from "@/components/transactions/TransactionSummary
 import AddTransactionModal from "@/components/transactions/AddTransactionModal";
 
 import { getTransactions } from "@/services/transactions/getTransactions";
-
+import EditTransactionModal from "@/components/transactions/EditTransactionModal";
 import type { Transaction } from "@/types/transaction";
 
 export default function TransactionsPage() {
@@ -17,6 +17,8 @@ export default function TransactionsPage() {
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
 
   useEffect(() => {
     loadTransactions();
@@ -101,13 +103,26 @@ export default function TransactionsPage() {
       <TransactionList
         transactions={filteredTransactions}
         onDeleted={loadTransactions}
-      />
+        onEdit={(transaction) => {
+            setEditingTransaction(transaction);
+        }}
+        />
 
       <AddTransactionModal
         open={open}
         onClose={() => setOpen(false)}
         onSaved={loadTransactions}
       />
+
+      <EditTransactionModal
+        open={editingTransaction !== null}
+        transaction={editingTransaction}
+        onClose={() => setEditingTransaction(null)}
+        onSaved={() => {
+            loadTransactions();
+            setEditingTransaction(null);
+        }}
+        />
     </div>
   );
 }

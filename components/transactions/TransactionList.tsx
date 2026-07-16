@@ -104,7 +104,11 @@ export default function TransactionList({
 
                             try {
                                 await deleteTransaction(item.id);
+
+                                alert("🗑️ Transaction deleted.");
+
                                 onDeleted();
+
                             } catch (error) {
                                 console.error(error);
                                 alert("Failed to delete transaction.");
