@@ -1,78 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-import { supabase } from "@/lib/supabase";
-
 import WealthSummary from "@/components/dashboard/WealthSummary";
 import GoalProgress from "@/components/dashboard/GoalProgress";
 import AICommentary from "@/components/dashboard/AICommentary";
-
+import { useFinancialData } from "@/hooks/useFinancialData";
 import {
   calculateInvestmentTotal,
   calculateNetWorth,
 } from "@/services/finance";
 
-import type { FinancialProfile } from "@/types/financial";
-import type { Investment } from "@/types/investment";
 
 
 export default function DashboardPage() {
 
-  const [profile, setProfile] =
-    useState<FinancialProfile | null>(null);
-
-  const [investments, setInvestments] =
-    useState<Investment[]>([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-
-  useEffect(() => {
-
-    loadData();
-
-  }, []);
-
-
-  async function loadData() {
-
-    const { data: profileData } =
-      await supabase
-        .from("financial_profile")
-        .select("*")
-        .eq("id", 1)
-        .single();
-
-
-    const { data: investmentData } =
-      await supabase
-        .from("investments")
-        .select("*");
-
-
-    setProfile(profileData);
-
-    setInvestments(
-      investmentData ?? []
-    );
-
-    setLoading(false);
-
-  }
-
+  const {
+  profile,
+  investments,
+  loading,
+  error,
+  } = useFinancialData();
 
   if (loading || !profile) {
-
     return (
       <div className="p-8">
         Loading...
       </div>
     );
-
   }
 
+if (loading || !profile) {
+  return (
+    <div className="p-8">
+      Loading...
+    </div>
+  );
+}
+
+if (error) {
+  return (
+    <div className="p-8 text-red-600">
+      {error}
+    </div>
+  );
+}
 
   const investmentTotal =
     calculateInvestmentTotal(

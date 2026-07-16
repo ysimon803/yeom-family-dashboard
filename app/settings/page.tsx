@@ -5,11 +5,13 @@ import { useState } from "react";
 import ProfileCard from "@/components/settings/ProfileCard";
 import FinancialSettingsCard from "@/components/settings/FinancialSettingsCard";
 import InvestmentSettingsCard from "@/components/settings/InvestmentSettingsCard";
-
-import type { FinancialProfile } from "@/types/financialProfile";
+import HouseGoalCard from "@/components/settings/HouseGoalCard";
+import type { FinancialProfile } from "@/types/financial";
+import { saveFinancialProfile } from "@/services/settings/saveFinancialProfile";
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<FinancialProfile>({
+    
     id: 1,
 
     full_name: "Seungwon Yeom",
@@ -31,7 +33,15 @@ export default function SettingsPage() {
     down_payment_percent: 20,
     target_move_year: 2028,
   });
-
+async function handleSave() {
+  try {
+    await saveFinancialProfile(profile);
+    alert("✅ Settings saved successfully.");
+  } catch (error) {
+    console.error(error);
+    alert("❌ Failed to save settings.");
+  }
+}
   return (
     <div className="space-y-8 p-8">
       <div>
@@ -58,8 +68,14 @@ export default function SettingsPage() {
       profile={profile}
       setProfile={setProfile}
     />
+    <HouseGoalCard
+      profile={profile}
+      setProfile={setProfile}
+    />
+
       <div className="flex justify-end">
         <button
+          onClick={handleSave}
           className="rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
         >
           Save Settings
