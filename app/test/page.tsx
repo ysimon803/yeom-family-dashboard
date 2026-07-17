@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { supabase } from "@/lib/supabase";
 
 export default function SettingsPage() {
@@ -10,40 +11,46 @@ export default function SettingsPage() {
   const [monthlyIncome, setMonthlyIncome] = useState(0);
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    async function loadSettings() {
+      const { data, error } = await supabase
+        .from("financial_profile")
+        .select("*")
+        .eq("id", 1)
+        .single();
 
-  async function loadSettings() {
-    const { data, error } = await supabase
-      .from("financial_profile")
-      .select("*")
-      .eq("id", 1)
-      .single();
+      if (error) {
+        console.error("Failed to load settings:", error);
+        return;
+      }
 
-    if (!error && data) {
-      setHomeValue(data.home_value);
-      setMortgage(data.mortgage);
-      setCash(data.cash);
-      setMonthlyIncome(data.monthly_income);
+      if (data) {
+        setHomeValue(data.home_value);
+        setMortgage(data.mortgage);
+        setCash(data.cash);
+        setMonthlyIncome(data.monthly_income);
+      }
     }
-  }
+
+    void loadSettings();
+  }, []);
 
   async function saveSettings() {
     const { error } = await supabase
       .from("financial_profile")
       .update({
         home_value: homeValue,
-        mortgage: mortgage,
-        cash: cash,
+        mortgage,
+        cash,
         monthly_income: monthlyIncome,
       })
       .eq("id", 1);
 
     if (error) {
-      alert("저장 실패: " + error.message);
-    } else {
-      alert("✅ 저장되었습니다.");
+      alert(`저장 실패: ${error.message}`);
+      return;
     }
+
+    alert("✅ 저장되었습니다.");
   }
 
   return (
@@ -57,7 +64,7 @@ export default function SettingsPage() {
       <div className="mt-10 rounded-2xl border bg-white p-8 shadow-sm">
         <h2 className="mb-6 text-2xl font-semibold">House</h2>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <Input
             label="Current Home Value"
             value={homeValue}
@@ -75,7 +82,7 @@ export default function SettingsPage() {
 
         <h2 className="mb-6 text-2xl font-semibold">Cash Flow</h2>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <Input
             label="Emergency Fund"
             value={cash}
@@ -90,7 +97,8 @@ export default function SettingsPage() {
         </div>
 
         <button
-          onClick={saveSettings}
+          type="button"
+          onClick={() => void saveSettings()}
           className="mt-10 rounded-xl bg-blue-600 px-8 py-3 text-white hover:bg-blue-700"
         >
           Save Changes
@@ -100,13 +108,13 @@ export default function SettingsPage() {
   );
 }
 
-type Props = {
+type InputProps = {
   label: string;
   value: number;
-  setValue: (v: number) => void;
+  setValue: (value: number) => void;
 };
 
-function Input({ label, value, setValue }: Props) {
+function Input({ label, value, setValue }: InputProps) {
   return (
     <div>
       <label className="mb-2 block text-sm text-slate-500">
@@ -116,7 +124,7 @@ function Input({ label, value, setValue }: Props) {
       <input
         type="number"
         value={value}
-        onChange={(e) => setValue(Number(e.target.value))}
+        onChange={(event) => setValue(Number(event.target.value))}
         className="w-full rounded-lg border p-3"
       />
     </div>

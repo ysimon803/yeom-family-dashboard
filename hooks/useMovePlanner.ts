@@ -6,64 +6,66 @@ import type { FinancialProfile } from "@/types/financial";
 import type { Investment } from "@/types/investment";
 
 export function useMovePlanner() {
-  const [profile, setProfile] =
-    useState<FinancialProfile | null>(null);
+  const [profile, setProfile] = useState<FinancialProfile | null>(null);
+  const [investments, setInvestments] = useState<Investment[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [investments, setInvestments] =
-    useState<Investment[]>([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [homePrice, setHomePrice] =
-    useState(0);
-
-  const [monthlySavings, setMonthlySavings] =
-    useState(0);
-
-  const [returnRate, setReturnRate] =
-    useState(0);
+  const [homePrice, setHomePrice] = useState(0);
+  const [monthlySavings, setMonthlySavings] = useState(0);
+  const [returnRate, setReturnRate] = useState(0);
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  async function loadData() {
-    const { data: profileData } =
-      await supabase
+    async function loadData() {
+      const { data: profileData, error: profileError } = await supabase
         .from("financial_profile")
         .select("*")
         .eq("id", 1)
         .single();
 
-    const { data: investmentData } =
-      await supabase
+      const { data: investmentData, error: investmentError } = await supabase
         .from("investments")
         .select("*");
 
-    setProfile(profileData);
+      if (profileError) {
+        console.error("Failed to load move planner profile:", profileError);
+        setLoading(false);
+        return;
+      }
 
-    setInvestments(
-      investmentData ?? []
-    );
+      if (!profileData) {
+        setLoading(false);
+        return;
+      }
 
-    setHomePrice(
-      profileData.move_home_price ??
-      profileData.target_home_price
-    );
+      if (investmentError) {
+        console.error(
+          "Failed to load move planner investments:",
+          investmentError
+        );
+      }
 
-    setMonthlySavings(
-      profileData.move_monthly_savings ??
-      3000
-    );
+      setProfile(profileData);
+      setInvestments(investmentData ?? []);
 
-    setReturnRate(
-      profileData.move_return_rate ??
-      5
-    );
+      setHomePrice(
+        profileData.move_home_price ??
+          profileData.target_home_price ??
+          0
+      );
 
-    setLoading(false);
-  }
+      setMonthlySavings(
+        profileData.move_monthly_savings ?? 3000
+      );
+
+      setReturnRate(
+        profileData.move_return_rate ?? 5
+      );
+
+      setLoading(false);
+    }
+
+    void loadData();
+  }, []);
 
   async function saveScenario(
     key: string,
@@ -73,10 +75,14 @@ export function useMovePlanner() {
       [key]: value,
     };
 
-    await supabase
+    const { error } = await supabase
       .from("financial_profile")
       .update(updateData)
       .eq("id", 1);
+
+    if (error) {
+      console.error("Failed to save move planner scenario:", error);
+    }
   }
 
   return {

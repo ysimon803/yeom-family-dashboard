@@ -2,20 +2,25 @@
 
 import AssetBreakdown from "./AssetBreakdown";
 import InvestmentPieChart from "./InvestmentPieChart";
-import PortfolioAnalysis from "./PortfolioAnalysis";
 import MonthlySummary from "./MonthlySummary";
+import PortfolioAnalysis from "./PortfolioAnalysis";
+
+import type { Investment } from "@/types/investment";
+
+type Allocation = {
+  ticker: string;
+  balance: number;
+  percent: number;
+};
 
 type Props = {
   home: number;
   cash: number;
   investments: number;
   mortgage: number;
-
   monthlyIncome: number;
-
-  investmentData: any[];
-
-  allocation: any[];
+  investmentData: Investment[];
+  allocation: Allocation[];
 };
 
 export default function PortfolioSection({
@@ -29,9 +34,7 @@ export default function PortfolioSection({
 }: Props) {
   return (
     <div className="space-y-8">
-
-      <div className="grid grid-cols-2 gap-8">
-
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <AssetBreakdown
           home={home}
           cash={cash}
@@ -43,22 +46,13 @@ export default function PortfolioSection({
           monthlyIncome={monthlyIncome}
           mortgage={mortgage}
         />
-
       </div>
 
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <InvestmentPieChart investments={investmentData} />
 
-      <div className="grid grid-cols-2 gap-8">
-
-        <InvestmentPieChart
-          investments={investmentData}
-        />
-
-        <PortfolioAnalysis
-          allocation={allocation}
-        />
-
+        <PortfolioAnalysis allocation={allocation} />
       </div>
-
     </div>
   );
 }

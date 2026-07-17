@@ -1,18 +1,27 @@
 import { calculateAllocation } from "./finance";
 
+import type { Investment } from "@/types/investment";
+
+type AllocationItem = {
+  ticker: string;
+  balance: number;
+  percent: number;
+};
+
 export function buildAdvice(
-  investments: any[],
+  investments: Investment[],
   cash: number,
   targetDownPayment: number
-) {
-  const allocation =
-    calculateAllocation(investments);
+): string[] {
+  const allocation = calculateAllocation(
+    investments
+  ) as AllocationItem[];
 
   const advice: string[] = [];
 
   if (allocation.length > 0) {
-    const largest = allocation.reduce((a, b) =>
-      a.balance > b.balance ? a : b
+    const largest = allocation.reduce((largest, current) =>
+      current.balance > largest.balance ? current : largest
     );
 
     if (largest.percent > 70) {

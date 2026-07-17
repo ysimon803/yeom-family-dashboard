@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
-import { getFinancialProfile } from "@/services/settings/getFinancialProfile";
 import { getInvestments } from "@/services/investments/getInvestments";
+import { getFinancialProfile } from "@/services/settings/getFinancialProfile";
 
 import type { FinancialProfile } from "@/types/financial";
 import type { Investment } from "@/types/investment";
@@ -16,7 +16,7 @@ export function useFinancialData() {
     useState<Investment[]>([]);
 
   const [loading, setLoading] =
-    useState(true);
+    useState(false);
 
   const [error, setError] =
     useState<string | null>(null);
@@ -26,11 +26,11 @@ export function useFinancialData() {
     setError(null);
 
     try {
-      const profileData =
-        await getFinancialProfile();
-
-      const investmentData =
-        await getInvestments();
+      const [profileData, investmentData] =
+        await Promise.all([
+          getFinancialProfile(),
+          getInvestments(),
+        ]);
 
       setProfile(profileData);
       setInvestments(investmentData);
@@ -41,10 +41,6 @@ export function useFinancialData() {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    reload();
-  }, [reload]);
 
   return {
     profile,
