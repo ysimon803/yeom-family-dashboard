@@ -3,6 +3,8 @@
 import { useState } from "react";
 
 import TransactionForm from "@/components/transactions/TransactionForm";
+import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 import { updateTransaction } from "@/services/transactions/updateTransaction";
 
 import type { Transaction } from "@/types/transaction";
@@ -92,8 +94,6 @@ function EditTransactionForm({
         amount: numericAmount,
       });
 
-      alert("✅ Transaction updated successfully.");
-
       onSaved();
       onClose();
     } catch (error) {
@@ -104,59 +104,45 @@ function EditTransactionForm({
     }
   }
 
+  const footer = (
+    <>
+      <Button
+        variant="secondary"
+        onClick={onClose}
+        disabled={saving}
+      >
+        Cancel
+      </Button>
+
+      <Button
+        onClick={() => void handleUpdate()}
+        loading={saving}
+      >
+        Update
+      </Button>
+    </>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-xl">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">
-            Edit Transaction
-          </h2>
-
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close edit transaction modal"
-            className="text-2xl text-slate-500 hover:text-black"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="mt-8">
-          <TransactionForm
-            date={date}
-            setDate={setDate}
-            type={type}
-            setType={handleTypeChange}
-            category={category}
-            setCategory={setCategory}
-            description={description}
-            setDescription={setDescription}
-            amount={amount}
-            setAmount={setAmount}
-          />
-        </div>
-
-        <div className="mt-6 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="rounded-xl border px-5 py-3 disabled:opacity-50"
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            onClick={() => void handleUpdate()}
-            disabled={saving}
-            className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {saving ? "Updating..." : "Update"}
-          </button>
-        </div>
-      </div>
-    </div>
+    <Modal
+      open
+      title="Edit Transaction"
+      onClose={onClose}
+      footer={footer}
+      size="md"
+    >
+      <TransactionForm
+        date={date}
+        setDate={setDate}
+        type={type}
+        setType={handleTypeChange}
+        category={category}
+        setCategory={setCategory}
+        description={description}
+        setDescription={setDescription}
+        amount={amount}
+        setAmount={setAmount}
+      />
+    </Modal>
   );
 }

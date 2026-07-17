@@ -2,16 +2,18 @@
 
 import { useState } from "react";
 
-import ProfileCard from "@/components/settings/ProfileCard";
 import FinancialSettingsCard from "@/components/settings/FinancialSettingsCard";
-import InvestmentSettingsCard from "@/components/settings/InvestmentSettingsCard";
 import HouseGoalCard from "@/components/settings/HouseGoalCard";
-import type { FinancialProfile } from "@/types/financial";
+import InvestmentSettingsCard from "@/components/settings/InvestmentSettingsCard";
+import ProfileCard from "@/components/settings/ProfileCard";
+import Button from "@/components/ui/Button";
+import Spinner from "@/components/ui/Spinner";
 import { saveFinancialProfile } from "@/services/settings/saveFinancialProfile";
+
+import type { FinancialProfile } from "@/types/financial";
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<FinancialProfile>({
-    
     id: 1,
 
     full_name: "Seungwon Yeom",
@@ -26,7 +28,7 @@ export default function SettingsPage() {
 
     home_value: 430000,
     mortgage: 414047,
-    
+
     retirement_assets: 232534,
     rsu_value: 162287,
     stock_option_value: 92480,
@@ -36,15 +38,27 @@ export default function SettingsPage() {
     down_payment_percent: 20,
     target_move_year: 2028,
   });
-async function handleSave() {
-  try {
-    await saveFinancialProfile(profile);
-    alert("✅ Settings saved successfully.");
-  } catch (error) {
-    console.error(error);
-    alert("❌ Failed to save settings.");
+
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    if (saving) {
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await saveFinancialProfile(profile);
+      alert("✅ Settings saved successfully.");
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+      alert("❌ Failed to save settings.");
+    } finally {
+      setSaving(false);
+    }
   }
-}
+
   return (
     <div className="space-y-8 p-8">
       <div>
@@ -62,27 +76,37 @@ async function handleSave() {
         setProfile={setProfile}
       />
 
-     <FinancialSettingsCard
-      profile={profile}
-      setProfile={setProfile}
-    />
+      <FinancialSettingsCard
+        profile={profile}
+        setProfile={setProfile}
+      />
 
-    <InvestmentSettingsCard
-      profile={profile}
-      setProfile={setProfile}
-    />
-    <HouseGoalCard
-      profile={profile}
-      setProfile={setProfile}
-    />
+      <InvestmentSettingsCard
+        profile={profile}
+        setProfile={setProfile}
+      />
+
+      <HouseGoalCard
+        profile={profile}
+        setProfile={setProfile}
+      />
 
       <div className="flex justify-end">
-        <button
-          onClick={handleSave}
-          className="rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
+        <Button
+          onClick={() => void handleSave()}
+          disabled={saving}
         >
-          Save Settings
-        </button>
+          {saving && (
+            <Spinner
+              size="sm"
+              label="Saving settings"
+            />
+          )}
+
+          {saving
+            ? "Saving..."
+            : "Save Settings"}
+        </Button>
       </div>
     </div>
   );

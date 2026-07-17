@@ -1,24 +1,34 @@
-import "./globals.css";
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
+
+import "./globals.css";
 
 import AppLayout from "@/components/layout/AppLayout";
+import ThemeProvider from "@/components/theme/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "WealthOS",
   description: "Personal Finance Dashboard",
 };
 
+type Props = {
+  children: ReactNode;
+};
+
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode;
-}) {
+}: Props) {
   return (
-    <html lang="en">
-      <body className="bg-slate-100">
-        <AppLayout>
-          {children}
-        </AppLayout>
+    <html
+      lang="en"
+      suppressHydrationWarning
+    >
+      <body className="bg-slate-100 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
+        <ThemeProvider>
+          <AppLayout>
+            {children}
+          </AppLayout>
+        </ThemeProvider>
       </body>
     </html>
   );
