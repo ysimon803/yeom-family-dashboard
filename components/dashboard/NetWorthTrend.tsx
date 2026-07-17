@@ -27,12 +27,6 @@ interface NetWorthHistoryRow {
   created_at: string;
 }
 
-interface NetWorthHistoryResponse {
-  success: boolean;
-  history?: NetWorthHistoryRow[];
-  error?: string;
-}
-
 interface NetWorthChartItem {
   id: string;
   date: string;
@@ -221,56 +215,56 @@ export default function NetWorthTrend() {
     string | null
   >(null);
 
-  const loadHistory = useCallback(
-    async (showLoading = true) => {
-      try {
-        if (showLoading) {
-          setLoading(true);
-        }
+  const loadHistory = useCallback(async () => {
+  try {
+    setError(null);
 
-        setError(null);
-
-        const response = await fetch(
-          "/api/networth/history",
-          {
-            method: "GET",
-            cache: "no-store",
-          }
-        );
-
-        const result =
-          (await response.json()) as NetWorthHistoryResponse;
-
-        if (!response.ok || !result.success) {
-          throw new Error(
-            result.error ??
-              "Unable to load net worth history"
-          );
-        }
-
-        setHistory(result.history ?? []);
-      } catch (error) {
-        setError(
-          error instanceof Error
-            ? error.message
-            : "Unable to load net worth history"
-        );
-      } finally {
-        if (showLoading) {
-          setLoading(false);
-        }
+    const response = await fetch(
+      "/api/networth/history",
+      {
+        method: "GET",
+        cache: "no-store",
       }
-    },
-    []
-  );
+    );
+
+    const data = (await response.json()) as {
+      success: boolean;
+      history?: NetWorthHistoryRow[];
+      error?: string;
+    };
+
+    if (!response.ok || !data.success) {
+      throw new Error(
+        data.error ??
+          "Unable to load net worth history"
+      );
+    }
+
+    setHistory(data.history ?? []);
+  } catch (error) {
+    setError(
+      error instanceof Error
+        ? error.message
+        : "Unable to load net worth history"
+    );
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => {
-    loadHistory();
-  }, [loadHistory]);
+  const timeoutId = window.setTimeout(() => {
+    void loadHistory();
+  }, 0);
+
+  return () => {
+    window.clearTimeout(timeoutId);
+  };
+}, [loadHistory]);
 
   useEffect(() => {
     function handleSnapshotSaved() {
-      loadHistory(false);
+      loadHistory();
     }
 
     window.addEventListener(

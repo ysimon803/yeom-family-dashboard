@@ -9,10 +9,18 @@ import EmergencyFundAdvisorCard from "@/components/advisor/EmergencyFundAdvisorC
 import PriorityRecommendationCard from "@/components/advisor/PriorityRecommendationCard";
 
 export default function AdvisorPage() {
-  const { profile, loading, error } = useFinancialData();
+  const {
+    profile,
+    loading,
+    error,
+  } = useFinancialData();
 
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return (
+      <div className="p-8">
+        Loading...
+      </div>
+    );
   }
 
   if (error) {
@@ -33,28 +41,45 @@ export default function AdvisorPage() {
     );
   }
 
-  const retirement = Number(profile.retirement_assets ?? 0);
-  const rsu = Number(profile.rsu_value ?? 0);
-  const stockOptions = Number(profile.stock_option_value ?? 0);
-  const cash = Number(profile.cash ?? 0);
-  const monthlyIncome = Number(profile.monthly_income ?? 0);
-  const targetHomePrice = Number(profile.target_home_price ?? 0);
-  const downPaymentPercent = Number(
-    profile.down_payment_percent ?? 0
-  );
+  const retirement =
+    Number(profile.retirement_assets ?? 0);
 
-  const employerEquity = rsu + stockOptions;
-  const portfolioTotal = retirement + employerEquity + cash;
+  const rsu =
+    Number(profile.rsu_value ?? 0);
+
+  const stockOptions =
+    Number(profile.stock_option_value ?? 0);
+
+  const cash =
+    Number(profile.cash ?? 0);
+
+  const monthlyIncome =
+    Number(profile.monthly_income ?? 0);
+
+  const targetHomePrice =
+    Number(profile.target_home_price ?? 0);
+
+  const downPaymentPercent =
+    Number(profile.down_payment_percent ?? 0);
+
+  const employerEquity =
+    rsu + stockOptions;
+
+  const portfolioTotal =
+    retirement +
+    employerEquity +
+    cash;
 
   const companyRisk =
     portfolioTotal > 0
       ? (employerEquity / portfolioTotal) * 100
       : 0;
 
-  const estimatedMonthlyExpense = Math.max(
-    monthlyIncome * 0.6,
-    4000
-  );
+  const estimatedMonthlyExpense =
+    Math.max(
+      monthlyIncome * 0.6,
+      4000
+    );
 
   const emergencyMonths =
     estimatedMonthlyExpense > 0
@@ -62,7 +87,8 @@ export default function AdvisorPage() {
       : 0;
 
   const targetDownPayment =
-    targetHomePrice * (downPaymentPercent / 100);
+    targetHomePrice *
+    (downPaymentPercent / 100);
 
   const houseProgress =
     targetDownPayment > 0
