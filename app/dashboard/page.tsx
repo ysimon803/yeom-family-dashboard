@@ -5,6 +5,12 @@ import NetWorthSummary from "@/components/dashboard/NetWorthSummary";
 import NetWorthTrend from "@/components/dashboard/NetWorthTrend";
 import RecentTransactions from "@/components/dashboard/RecentTransactions";
 import SpendingByCategory from "@/components/dashboard/SpendingByCategory";
+import InvestmentSummaryCard from "@/components/dashboard/InvestmentSummaryCard";
+import SpendingByCategoryChart from "@/components/dashboard/SpendingByCategoryChart";
+import CashFlowCard from "@/components/dashboard/CashFlowCard";
+import NetWorthCard from "@/components/dashboard/NetWorthCard";
+import FinancialOverview from "@/components/dashboard/FinancialOverview";
+import FinancialGoalsCard from "@/components/dashboard/FinancialGoalsCard";
 
 export default function DashboardPage() {
   return (
@@ -29,8 +35,20 @@ export default function DashboardPage() {
         <div className="space-y-10">
           <NetWorthSummary />
 
-          <NetWorthTrend />
+          <main className="space-y-6">
+            <FinancialOverview />
 
+            <NetWorthTrend />
+
+            <FinancialGoalsCard />
+
+            <div className="grid gap-6 xl:grid-cols-2">
+              <InvestmentSummaryCard />
+              <SpendingByCategoryChart />
+              <CashFlowCard />
+              <NetWorthCard />
+            </div>
+          </main>
           <AccountCards />
 
           <AssetAllocation />

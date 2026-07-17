@@ -9,6 +9,7 @@ import {
 
 import {
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -17,517 +18,433 @@ import {
   YAxis,
 } from "recharts";
 
-interface NetWorthHistoryRow {
-  id: string;
-  user_id: string;
-  snapshot_date: string;
-  net_worth: number | string;
-  assets: number | string;
-  liabilities: number | string;
-  created_at: string;
-}
+import {
+  getNetWorthTrend,
+  type NetWorthHistoryPoint,
+} from "@/services/api/netWorthHistory";
 
-interface NetWorthChartItem {
-  id: string;
-  date: string;
-  netWorth: number;
+interface ChartDataPoint {
+  month: string;
+  fullDate: string;
   assets: number;
   liabilities: number;
+  netWorth: number;
 }
 
-function formatCurrency(amount: number): string {
+interface TooltipEntry {
+  name?: string;
+  value?: number | string;
+}
+
+interface NetWorthTooltipProps {
+  active?: boolean;
+  payload?: TooltipEntry[];
+  label?: string;
+}
+
+function formatCurrency(
+  value: number
+): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(value);
 }
 
 function formatCompactCurrency(
-  amount: number
+  value: number
 ): string {
   return new Intl.NumberFormat("en-US", {
+    notation: "compact",
     style: "currency",
     currency: "USD",
-    notation: "compact",
     maximumFractionDigits: 1,
-  }).format(amount);
+  }).format(value);
 }
 
-function formatChartDate(date: string): string {
-  const parsedDate = new Date(
-    `${date}T12:00:00`
+function formatMonth(
+  dateValue: string
+): string {
+  const date = new Date(
+    `${dateValue}T00:00:00`
   );
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return date;
-  }
 
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
-    day: "numeric",
-  }).format(parsedDate);
+    year: "2-digit",
+  }).format(date);
 }
 
-function formatFullDate(date: string): string {
-  const parsedDate = new Date(
-    `${date}T12:00:00`
+function formatFullDate(
+  dateValue: string
+): string {
+  const date = new Date(
+    `${dateValue}T00:00:00`
   );
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return date;
-  }
 
   return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
     month: "long",
-    day: "numeric",
-  }).format(parsedDate);
+    year: "numeric",
+  }).format(date);
 }
 
-function toNumber(
-  value: number | string | null | undefined
-): number {
-  const parsedValue = Number(value);
-
-  return Number.isFinite(parsedValue)
-    ? parsedValue
-    : 0;
-}
-
-function calculatePercentageChange(
-  current: number,
-  previous: number
-): number | null {
-  if (previous === 0) {
-    return null;
-  }
-
-  return (
-    ((current - previous) /
-      Math.abs(previous)) *
-    100
-  );
-}
-
-interface TooltipPayloadItem {
-  payload?: NetWorthChartItem;
-}
-
-interface TrendTooltipProps {
-  active?: boolean;
-  payload?: TooltipPayloadItem[];
-}
-
-function TrendTooltip({
+function CustomTooltip({
   active,
   payload,
-}: TrendTooltipProps) {
-  if (!active || !payload?.length) {
-    return null;
-  }
-
-  const item = payload[0]?.payload;
-
-  if (!item) {
+  label,
+}: NetWorthTooltipProps) {
+  if (
+    !active ||
+    !payload ||
+    payload.length === 0
+  ) {
     return null;
   }
 
   return (
-    <div className="min-w-52 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-lg">
-      <p className="font-semibold text-gray-900">
-        {formatFullDate(item.date)}
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-lg">
+      <p className="text-sm font-semibold text-slate-950">
+        {label}
       </p>
 
-      <div className="mt-3 space-y-2 text-sm">
-        <div className="flex items-center justify-between gap-6">
-          <span className="text-gray-500">
-            Net Worth
-          </span>
+      <div className="mt-3 space-y-2">
+        {payload.map((entry) => {
+          const numericValue =
+            typeof entry.value === "number"
+              ? entry.value
+              : Number(entry.value ?? 0);
 
-          <span className="font-semibold text-blue-600">
-            {formatCurrency(item.netWorth)}
-          </span>
-        </div>
+          return (
+            <div
+              key={entry.name}
+              className="flex min-w-48 items-center justify-between gap-6"
+            >
+              <span className="text-xs text-slate-500">
+                {entry.name}
+              </span>
 
-        <div className="flex items-center justify-between gap-6">
-          <span className="text-gray-500">
-            Assets
-          </span>
-
-          <span className="font-medium text-emerald-600">
-            {formatCurrency(item.assets)}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between gap-6">
-          <span className="text-gray-500">
-            Liabilities
-          </span>
-
-          <span className="font-medium text-red-600">
-            {formatCurrency(
-              item.liabilities
-            )}
-          </span>
-        </div>
+              <span className="text-xs font-semibold text-slate-900">
+                {formatCurrency(numericValue)}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function LoadingState() {
-  const loadingItems = [
-    "loading-assets",
-    "loading-liabilities",
-    "loading-snapshots",
-  ];
-
-  return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="h-6 w-48 animate-pulse rounded bg-gray-200" />
-
-      <div className="mt-2 h-4 w-72 animate-pulse rounded bg-gray-100" />
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        {loadingItems.map((item) => (
-          <div
-            key={item}
-            className="h-24 animate-pulse rounded-xl bg-gray-100"
-          />
-        ))}
-      </div>
-
-      <div className="mt-6 h-80 animate-pulse rounded-xl bg-gray-100" />
-    </section>
-  );
-}
-
 export default function NetWorthTrend() {
   const [history, setHistory] = useState<
-    NetWorthHistoryRow[]
+    NetWorthHistoryPoint[]
   >([]);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [error, setError] = useState<
-    string | null
-  >(null);
+  const [error, setError] =
+    useState<string | null>(null);
 
-  const loadHistory = useCallback(async () => {
-  try {
-    setError(null);
+  const loadHistory =
+    useCallback(async () => {
+      try {
+        setError(null);
 
-    const response = await fetch(
-      "/api/networth/history",
-      {
-        method: "GET",
-        cache: "no-store",
+        const result =
+          await getNetWorthTrend(12);
+
+        setHistory(result);
+      } catch (loadError) {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Unable to load net worth history"
+        );
+      } finally {
+        setLoading(false);
       }
-    );
-
-    const data = (await response.json()) as {
-      success: boolean;
-      history?: NetWorthHistoryRow[];
-      error?: string;
-    };
-
-    if (!response.ok || !data.success) {
-      throw new Error(
-        data.error ??
-          "Unable to load net worth history"
-      );
-    }
-
-    setHistory(data.history ?? []);
-  } catch (error) {
-    setError(
-      error instanceof Error
-        ? error.message
-        : "Unable to load net worth history"
-    );
-  } finally {
-    setLoading(false);
-  }
-}, []);
+    }, []);
 
   useEffect(() => {
-  const timeoutId = window.setTimeout(() => {
-    void loadHistory();
-  }, 0);
-
-  return () => {
-    window.clearTimeout(timeoutId);
-  };
-}, [loadHistory]);
-
-  useEffect(() => {
-    function handleSnapshotSaved() {
-      loadHistory();
-    }
-
-    window.addEventListener(
-      "wealthos:networth-snapshot-saved",
-      handleSnapshotSaved
+    const timeoutId = window.setTimeout(
+      () => {
+        void loadHistory();
+      },
+      0
     );
 
     return () => {
-      window.removeEventListener(
-        "wealthos:networth-snapshot-saved",
-        handleSnapshotSaved
-      );
+      window.clearTimeout(timeoutId);
     };
   }, [loadHistory]);
 
-  const chartData = useMemo<
-    NetWorthChartItem[]
-  >(() => {
-    return history
-      .map((item) => ({
-        id: item.id,
-        date: item.snapshot_date,
-        netWorth: toNumber(item.net_worth),
-        assets: toNumber(item.assets),
-        liabilities: toNumber(
-          item.liabilities
-        ),
-      }))
-      .sort(
-        (first, second) =>
-          new Date(first.date).getTime() -
-          new Date(second.date).getTime()
-      );
-  }, [history]);
+  const chartData =
+    useMemo<ChartDataPoint[]>(
+      () =>
+        history.map((point) => ({
+          month: formatMonth(
+            point.snapshotDate
+          ),
+          fullDate: formatFullDate(
+            point.snapshotDate
+          ),
+          assets: point.assets,
+          liabilities: point.liabilities,
+          netWorth: point.netWorth,
+        })),
+      [history]
+    );
 
-  const currentItem =
-    chartData.at(-1) ?? null;
+  const currentNetWorth =
+    history.at(-1)?.netWorth ?? 0;
 
-  const previousItem =
-    chartData.length >= 2
-      ? chartData.at(-2) ?? null
-      : null;
+  const previousNetWorth =
+    history.at(-2)?.netWorth ?? null;
 
   const netWorthChange =
-    currentItem && previousItem
-      ? currentItem.netWorth -
-        previousItem.netWorth
-      : null;
+    previousNetWorth === null
+      ? null
+      : currentNetWorth -
+        previousNetWorth;
 
-  const percentageChange =
-    currentItem && previousItem
-      ? calculatePercentageChange(
-          currentItem.netWorth,
-          previousItem.netWorth
-        )
-      : null;
-
-  const isPositive =
-    (netWorthChange ?? 0) >= 0;
+  const netWorthChangePercent =
+    previousNetWorth === null ||
+    previousNetWorth === 0
+      ? null
+      : (netWorthChange! /
+          Math.abs(previousNetWorth)) *
+        100;
 
   if (loading) {
-    return <LoadingState />;
+    return (
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="animate-pulse">
+          <div className="h-6 w-44 rounded bg-slate-200" />
+          <div className="mt-2 h-4 w-64 rounded bg-slate-100" />
+          <div className="mt-6 h-80 rounded-xl bg-slate-100" />
+        </div>
+      </section>
+    );
   }
 
   if (error) {
     return (
-      <section className="rounded-2xl border border-red-200 bg-red-50 p-6">
-        <h2 className="font-semibold text-red-900">
-          Net worth trend unavailable
+      <section className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-950">
+          Net Worth Trend
         </h2>
 
-        <p className="mt-1 text-sm text-red-700">
+        <p className="mt-3 text-sm text-red-600">
           {error}
         </p>
 
         <button
           type="button"
-          onClick={() => loadHistory()}
-          className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+          onClick={() => {
+            setLoading(true);
+            void loadHistory();
+          }}
+          className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
         >
-          Try Again
+          Try again
         </button>
       </section>
     );
   }
 
+  if (chartData.length === 0) {
+    return (
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-950">
+          Net Worth Trend
+        </h2>
+
+        <p className="mt-2 text-sm text-slate-500">
+          No net worth history is available yet.
+        </p>
+      </section>
+    );
+  }
+
+  const positiveChange =
+    (netWorthChange ?? 0) >= 0;
+
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">
+          <p className="text-sm font-medium text-slate-500">
             Net Worth Trend
+          </p>
+
+          <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">
+            {formatCurrency(
+              currentNetWorth
+            )}
           </h2>
 
-          <p className="mt-1 text-sm text-gray-500">
-            Historical daily net worth snapshots
+          <p className="mt-1 text-sm text-slate-500">
+            Assets, liabilities, and net
+            worth over the last 12 months
           </p>
         </div>
 
-        {currentItem && (
-          <div className="lg:text-right">
-            <p className="text-sm font-medium text-gray-500">
-              Current Net Worth
-            </p>
+        {netWorthChange !== null && (
+          <div
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+              positiveChange
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-red-100 text-red-700"
+            }`}
+          >
+            {positiveChange ? "+" : ""}
+            {formatCurrency(
+              netWorthChange
+            )}
 
-            <p className="mt-1 text-2xl font-bold text-gray-900">
-              {formatCurrency(
-                currentItem.netWorth
-              )}
-            </p>
-
-            {netWorthChange !== null && (
-              <p
-                className={`mt-1 text-sm font-medium ${
-                  isPositive
-                    ? "text-emerald-600"
-                    : "text-red-600"
-                }`}
-              >
-                {isPositive ? "▲" : "▼"}{" "}
-                {isPositive ? "+" : ""}
-                {formatCurrency(netWorthChange)}
-
-                {percentageChange !== null && (
-                  <>
-                    {" "}
-                    (
-                    {percentageChange >= 0
-                      ? "+"
-                      : ""}
-                    {percentageChange.toFixed(2)}
-                    %)
-                  </>
+            {netWorthChangePercent !==
+              null && (
+              <>
+                {" "}
+                (
+                {positiveChange
+                  ? "+"
+                  : ""}
+                {netWorthChangePercent.toFixed(
+                  1
                 )}
-              </p>
+                %)
+              </>
             )}
           </div>
         )}
       </div>
 
-      {chartData.length === 0 ? (
-        <div className="mt-8 flex min-h-80 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 text-center">
-          <div>
-            <p className="font-medium text-gray-700">
-              No net worth history yet
-            </p>
-
-            <p className="mt-1 max-w-md text-sm text-gray-500">
-              Open the dashboard after your accounts
-              load. WealthOS will save one net worth
-              snapshot per day.
-            </p>
-          </div>
+      {chartData.length === 1 && (
+        <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4">
+          <p className="text-sm text-blue-700">
+            The first monthly snapshot has
+            been saved. The trend line will
+            become more meaningful as future
+            monthly records are added.
+          </p>
         </div>
-      ) : (
-        <>
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
-            <article className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                Latest Assets
-              </p>
-
-              <p className="mt-2 text-lg font-bold text-emerald-600">
-                {formatCurrency(
-                  currentItem?.assets ?? 0
-                )}
-              </p>
-            </article>
-
-            <article className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                Latest Liabilities
-              </p>
-
-              <p className="mt-2 text-lg font-bold text-red-600">
-                {formatCurrency(
-                  currentItem?.liabilities ?? 0
-                )}
-              </p>
-            </article>
-
-            <article className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                Snapshots
-              </p>
-
-              <p className="mt-2 text-lg font-bold text-gray-900">
-                {chartData.length}
-              </p>
-            </article>
-          </div>
-
-          <div className="mt-6 h-80 w-full">
-            <ResponsiveContainer
-              width="100%"
-              height="100%"
-            >
-              <LineChart
-                data={chartData}
-                margin={{
-                  top: 10,
-                  right: 20,
-                  bottom: 5,
-                  left: 10,
-                }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                />
-
-                <XAxis
-                  dataKey="date"
-                  axisLine={false}
-                  tickLine={false}
-                  fontSize={12}
-                  minTickGap={24}
-                  tickFormatter={formatChartDate}
-                />
-
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  fontSize={12}
-                  tickFormatter={
-                    formatCompactCurrency
-                  }
-                  width={72}
-                />
-
-                <Tooltip
-                  content={<TrendTooltip />}
-                />
-
-                <Line
-                  type="monotone"
-                  dataKey="netWorth"
-                  name="Net Worth"
-                  stroke="#2563eb"
-                  strokeWidth={3}
-                  dot={false}
-                  activeDot={{
-                    r: 6,
-                    fill: "#2563eb",
-                    strokeWidth: 0,
-                  }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {chartData.length === 1 && (
-            <div className="mt-5 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
-              <p className="text-sm text-amber-900">
-                The first snapshot has been saved.
-                Return on another day to begin seeing
-                a historical trend and percentage
-                change.
-              </p>
-            </div>
-          )}
-        </>
       )}
+
+      <div className="mt-6 h-80 w-full">
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+        >
+          <LineChart
+            data={chartData}
+            margin={{
+              top: 10,
+              right: 12,
+              left: 0,
+              bottom: 0,
+            }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              vertical={false}
+            />
+
+            <XAxis
+              dataKey="month"
+              tickLine={false}
+              axisLine={false}
+              tick={{
+                fontSize: 12,
+              }}
+            />
+
+            <YAxis
+              tickFormatter={
+                formatCompactCurrency
+              }
+              tickLine={false}
+              axisLine={false}
+              width={72}
+              tick={{
+                fontSize: 12,
+              }}
+            />
+
+            <Tooltip
+              content={
+                <CustomTooltip />
+              }
+              labelFormatter={(
+                _label,
+                payload
+              ) => {
+                const chartPoint =
+                  payload?.[0]
+                    ?.payload as
+                    | ChartDataPoint
+                    | undefined;
+
+                return (
+                  chartPoint?.fullDate ??
+                  ""
+                );
+              }}
+            />
+
+            <Legend
+              wrapperStyle={{
+                fontSize: 12,
+                paddingTop: 16,
+              }}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="assets"
+              name="Assets"
+              stroke="#10b981"
+              strokeWidth={2}
+              dot={{
+                r: 3,
+              }}
+              activeDot={{
+                r: 5,
+              }}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="liabilities"
+              name="Liabilities"
+              stroke="#ef4444"
+              strokeWidth={2}
+              dot={{
+                r: 3,
+              }}
+              activeDot={{
+                r: 5,
+              }}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="netWorth"
+              name="Net Worth"
+              stroke="#2563eb"
+              strokeWidth={3}
+              dot={{
+                r: 4,
+              }}
+              activeDot={{
+                r: 6,
+              }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </section>
   );
 }
