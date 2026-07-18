@@ -1,16 +1,19 @@
 import AccountCards from "@/components/dashboard/AccountCards";
 import AssetAllocation from "@/components/dashboard/AssetAllocation";
+import CashFlowCard from "@/components/dashboard/CashFlowCard";
+import FinancialGoalsCard from "@/components/dashboard/FinancialGoalsCard";
+import FinancialOverview from "@/components/dashboard/FinancialOverview";
+import InvestmentSummaryCard from "@/components/dashboard/InvestmentSummaryCard";
 import MonthlyCashFlow from "@/components/dashboard/MonthlyCashFlow";
+import NetWorthCard from "@/components/dashboard/NetWorthCard";
 import NetWorthSummary from "@/components/dashboard/NetWorthSummary";
 import NetWorthTrend from "@/components/dashboard/NetWorthTrend";
 import RecentTransactions from "@/components/dashboard/RecentTransactions";
 import SpendingByCategory from "@/components/dashboard/SpendingByCategory";
-import InvestmentSummaryCard from "@/components/dashboard/InvestmentSummaryCard";
 import SpendingByCategoryChart from "@/components/dashboard/SpendingByCategoryChart";
-import CashFlowCard from "@/components/dashboard/CashFlowCard";
-import NetWorthCard from "@/components/dashboard/NetWorthCard";
-import FinancialOverview from "@/components/dashboard/FinancialOverview";
-import FinancialGoalsCard from "@/components/dashboard/FinancialGoalsCard";
+import PlaidLinkButton from "@/components/plaid/PlaidLinkButton";
+import AIAdvisorCard from "@/components/dashboard/AIAdvisorCard";
+import BudgetProgress from "@/components/dashboard/BudgetProgress";
 
 export default function DashboardPage() {
   return (
@@ -21,21 +24,33 @@ export default function DashboardPage() {
             Yeom Family WealthOS
           </p>
 
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-gray-900">
-            Financial Dashboard
-          </h1>
+          <div className="mt-1 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                Financial Dashboard
+              </h1>
 
-          <p className="mt-2 text-gray-500">
-            Connected accounts, net worth trends,
-            asset allocation, spending, cash flow,
-            and recent financial activity.
-          </p>
+              <p className="mt-2 max-w-3xl text-gray-500">
+                Connected accounts, net worth trends, asset allocation,
+                spending, cash flow, and recent financial activity.
+              </p>
+            </div>
+
+            <div className="shrink-0">
+              <PlaidLinkButton />
+            </div>
+          </div>
         </header>
 
         <div className="space-y-10">
-          <NetWorthSummary />
+          <section aria-label="Net worth summary">
+            <NetWorthSummary />
+          </section>
 
-          <main className="space-y-6">
+          <section
+            className="space-y-6"
+            aria-label="Financial overview"
+          >
             <FinancialOverview />
 
             <NetWorthTrend />
@@ -48,16 +63,29 @@ export default function DashboardPage() {
               <CashFlowCard />
               <NetWorthCard />
             </div>
-          </main>
-          <AccountCards />
+          </section>
 
-          <AssetAllocation />
+          <section aria-label="Connected accounts">
+            <AccountCards />
+          </section>
 
-          <MonthlyCashFlow />
+          <section aria-label="Asset allocation">
+            <AssetAllocation />
+          </section>
 
-          <SpendingByCategory />
+          <section aria-label="Monthly cash flow">
+            <MonthlyCashFlow />
+          </section>
 
-          <RecentTransactions />
+          <section aria-label="Spending by category">
+            <SpendingByCategory />
+          </section>
+
+          <section aria-label="Recent transactions">
+            <RecentTransactions />
+            <AIAdvisorCard />
+            <BudgetProgress />
+          </section>
         </div>
       </div>
     </main>
