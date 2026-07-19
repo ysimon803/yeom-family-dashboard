@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 
+import ForecastCard from "@/components/dashboard/ForecastCard";
 import {
   getFinancialOverview,
   type FinancialHealthStatus,
@@ -43,7 +44,7 @@ function formatSignedCurrency(value: number): string {
 }
 
 function getHealthLabel(
-  status: FinancialHealthStatus
+  status: FinancialHealthStatus,
 ): string {
   if (status === "strong") {
     return "Strong";
@@ -57,7 +58,7 @@ function getHealthLabel(
 }
 
 function getHealthClassName(
-  status: FinancialHealthStatus
+  status: FinancialHealthStatus,
 ): string {
   if (status === "strong") {
     return "bg-emerald-100 text-emerald-700";
@@ -100,7 +101,9 @@ export default function FinancialOverview() {
     useState<FinancialOverviewData | null>(null);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    null,
+  );
 
   const loadOverview = useCallback(async () => {
     try {
@@ -113,7 +116,7 @@ export default function FinancialOverview() {
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "Unable to load financial overview"
+          : "Unable to load financial overview",
       );
     } finally {
       setLoading(false);
@@ -162,7 +165,8 @@ export default function FinancialOverview() {
         </h2>
 
         <p className="mt-2 text-sm text-red-600">
-          {error ?? "Financial overview is unavailable"}
+          {error ??
+            "Financial overview is unavailable"}
         </p>
 
         <button
@@ -183,104 +187,129 @@ export default function FinancialOverview() {
   const positiveNetWorth = overview.netWorth >= 0;
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-950">
-            Financial Overview
-          </h2>
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-slate-950">
+              Financial Overview
+            </h2>
 
-          <p className="mt-1 text-sm text-slate-500">
-            Your current financial position and recent activity
-          </p>
-        </div>
+            <p className="mt-1 text-sm text-slate-500">
+              Your current financial position and recent
+              activity
+            </p>
+          </div>
 
-        <div
-          className={`rounded-full px-3 py-1.5 text-xs font-semibold ${getHealthClassName(
-            overview.financialHealth
-          )}`}
-        >
-          Financial Health:{" "}
-          {getHealthLabel(overview.financialHealth)}
-        </div>
-      </div>
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <OverviewMetric
-          label="Net Worth"
-          value={formatSignedCurrency(overview.netWorth)}
-          description="Assets minus liabilities"
-          valueClassName={
-            positiveNetWorth
-              ? "text-slate-950"
-              : "text-red-600"
-          }
-        />
-
-        <OverviewMetric
-          label="Investments"
-          value={formatCurrency(overview.investments)}
-          description="Current portfolio value"
-        />
-
-        <OverviewMetric
-          label="30-Day Spending"
-          value={formatCurrency(overview.spending)}
-          description="Recent expense activity"
-          valueClassName="text-red-600"
-        />
-
-        <OverviewMetric
-          label="Cash Flow"
-          value={formatSignedCurrency(overview.cashFlow)}
-          description={`${overview.savingsRate.toFixed(
-            1
-          )}% savings rate`}
-          valueClassName={
-            positiveCashFlow
-              ? "text-emerald-600"
-              : "text-red-600"
-          }
-        />
-      </div>
-
-      <div className="mt-6 grid gap-4 border-t border-slate-200 pt-5 sm:grid-cols-3">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-            Total Assets
-          </p>
-
-          <p className="mt-1 text-sm font-semibold text-emerald-700">
-            {formatCurrency(overview.assets)}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-            Total Liabilities
-          </p>
-
-          <p className="mt-1 text-sm font-semibold text-red-700">
-            {formatCurrency(overview.liabilities)}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-            Savings Rate
-          </p>
-
-          <p
-            className={`mt-1 text-sm font-semibold ${
-              overview.savingsRate >= 0
-                ? "text-emerald-700"
-                : "text-red-700"
-            }`}
+          <div
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${getHealthClassName(
+              overview.financialHealth,
+            )}`}
           >
-            {overview.savingsRate.toFixed(1)}%
-          </p>
+            Financial Health:{" "}
+            {getHealthLabel(
+              overview.financialHealth,
+            )}
+          </div>
         </div>
-      </div>
-    </section>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <OverviewMetric
+            label="Net Worth"
+            value={formatSignedCurrency(
+              overview.netWorth,
+            )}
+            description="Assets minus liabilities"
+            valueClassName={
+              positiveNetWorth
+                ? "text-slate-950"
+                : "text-red-600"
+            }
+          />
+
+          <OverviewMetric
+            label="Investments"
+            value={formatCurrency(
+              overview.investments,
+            )}
+            description="Current portfolio value"
+          />
+
+          <OverviewMetric
+            label="30-Day Spending"
+            value={formatCurrency(
+              overview.spending,
+            )}
+            description="Recent expense activity"
+            valueClassName="text-red-600"
+          />
+
+          <OverviewMetric
+            label="Cash Flow"
+            value={formatSignedCurrency(
+              overview.cashFlow,
+            )}
+            description={`${overview.savingsRate.toFixed(
+              1,
+            )}% savings rate`}
+            valueClassName={
+              positiveCashFlow
+                ? "text-emerald-600"
+                : "text-red-600"
+            }
+          />
+        </div>
+
+        <div className="mt-6 grid gap-4 border-t border-slate-200 pt-5 sm:grid-cols-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              Total Assets
+            </p>
+
+            <p className="mt-1 text-sm font-semibold text-emerald-700">
+              {formatCurrency(overview.assets)}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              Total Liabilities
+            </p>
+
+            <p className="mt-1 text-sm font-semibold text-red-700">
+              {formatCurrency(
+                overview.liabilities,
+              )}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              Savings Rate
+            </p>
+
+            <p
+              className={`mt-1 text-sm font-semibold ${
+                overview.savingsRate >= 0
+                  ? "text-emerald-700"
+                  : "text-red-700"
+              }`}
+            >
+              {overview.savingsRate.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <ForecastCard
+        currentNetWorth={overview.netWorth}
+        monthlySavings={Math.max(
+          overview.cashFlow,
+          0,
+        )}
+        expectedAnnualReturn={7}
+        forecastMonths={12}
+      />
+    </div>
   );
 }

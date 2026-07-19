@@ -8,15 +8,11 @@ export interface CashFlowSummary {
   expenseTransactionCount: number;
 }
 
-interface FlexibleTransaction extends Transaction {
-  pending?: boolean | null;
-}
-
 function getDateDaysAgo(days: number): Date {
   const date = new Date();
 
   date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() - days);
+  date.setDate(date.getDate() - (days - 1));
 
   return date;
 }
@@ -27,22 +23,27 @@ export function calculateCashFlow(
 ): CashFlowSummary {
   const startDate = getDateDaysAgo(days);
 
+  const endDate = new Date();
+  endDate.setHours(23, 59, 59, 999);
+
   let income = 0;
   let expenses = 0;
   let incomeTransactionCount = 0;
   let expenseTransactionCount = 0;
 
-  for (const originalTransaction of transactions) {
-    const transaction =
-      originalTransaction as FlexibleTransaction;
-
-    const transactionDate = new Date(transaction.date);
+  for (const transaction of transactions) {
+    const transactionDate = new Date(
+      `${transaction.date}T12:00:00`
+    );
 
     if (Number.isNaN(transactionDate.getTime())) {
       continue;
     }
 
-    if (transactionDate < startDate) {
+    if (
+      transactionDate < startDate ||
+      transactionDate > endDate
+    ) {
       continue;
     }
 
@@ -50,29 +51,35 @@ export function calculateCashFlow(
       continue;
     }
 
-    const amount = Number(transaction.amount);
+    const rawAmount = Number(transaction.amount);
 
-    if (!Number.isFinite(amount) || amount === 0) {
+    if (
+      !Number.isFinite(rawAmount) ||
+      rawAmount === 0
+    ) {
       continue;
     }
 
-    if (amount < 0) {
-      income += Math.abs(amount);
+    const amount = Math.abs(rawAmount);
+
+    if (rawAmount < 0) {
+      income += amount;
       incomeTransactionCount += 1;
-    } else {
-      expenses += amount;
-      expenseTransactionCount += 1;
+      continue;
     }
+
+    expenses += amount;
+    expenseTransactionCount += 1;
   }
 
-  income = Number(income.toFixed(2));
-  expenses = Number(expenses.toFixed(2));
+  const roundedIncome = Number(income.toFixed(2));
+  const roundedExpenses = Number(expenses.toFixed(2));
 
   return {
-    income,
-    expenses,
+    income: roundedIncome,
+    expenses: roundedExpenses,
     netCashFlow: Number(
-      (income - expenses).toFixed(2)
+      (roundedIncome - roundedExpenses).toFixed(2)
     ),
     incomeTransactionCount,
     expenseTransactionCount,

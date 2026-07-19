@@ -12,125 +12,6 @@ export interface CashFlowSummary {
   periodEnd: string;
 }
 
-type UnknownRecord = Record<string, unknown>;
-
-function isRecord(value: unknown): value is UnknownRecord {
-  return typeof value === "object" && value !== null;
-}
-
-function getStringField(
-  record: UnknownRecord,
-  keys: string[]
-): string | undefined {
-  for (const key of keys) {
-    const value = record[key];
-
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value.trim();
-    }
-  }
-
-  return undefined;
-}
-
-function getNumberField(
-  record: UnknownRecord,
-  keys: string[]
-): number | undefined {
-  for (const key of keys) {
-    const value = record[key];
-
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
-
-    if (typeof value === "string" && value.trim() !== "") {
-      const parsedValue = Number(value);
-
-      if (Number.isFinite(parsedValue)) {
-        return parsedValue;
-      }
-    }
-  }
-
-  return undefined;
-}
-
-function getTransactionDate(record: UnknownRecord): Date | null {
-  const dateValue = getStringField(record, [
-    "transaction_date",
-    "transactionDate",
-    "date",
-    "posted_date",
-    "postedDate",
-    "created_at",
-    "createdAt",
-  ]);
-
-  if (!dateValue) {
-    return null;
-  }
-
-  const parsedDate = new Date(dateValue);
-
-  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
-}
-
-function normalizeTransactionType(
-  record: UnknownRecord,
-  amount: number
-): "income" | "expense" | null {
-  const type = getStringField(record, [
-    "type",
-    "transaction_type",
-    "transactionType",
-    "flow_type",
-    "flowType",
-  ])
-    ?.toLowerCase()
-    .replaceAll(" ", "")
-    .replaceAll("_", "")
-    .replaceAll("-", "");
-
-  if (
-    type === "income" ||
-    type === "credit" ||
-    type === "deposit" ||
-    type === "paycheck" ||
-    type === "revenue"
-  ) {
-    return "income";
-  }
-
-  if (
-    type === "expense" ||
-    type === "debit" ||
-    type === "purchase" ||
-    type === "payment" ||
-    type === "withdrawal"
-  ) {
-    return "expense";
-  }
-
-  /*
-   * 거래 타입이 없는 경우 사용하는 기본 규칙:
-   * 양수 = income
-   * 음수 = expense
-   *
-   * 프로젝트에서 지출을 양수로 저장한다면 거래의 type 필드가
-   * 반드시 "expense"로 저장되어 있어야 합니다.
-   */
-  if (amount > 0) {
-    return "income";
-  }
-
-  if (amount < 0) {
-    return "expense";
-  }
-
-  return null;
-}
-
 function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
@@ -154,45 +35,40 @@ export async function getCashFlowSummary(
   let expenseTransactionCount = 0;
 
   for (const transaction of transactions) {
-    if (!isRecord(transaction)) {
+    const transactionDate = new Date(
+      `${transaction.date}T12:00:00`
+    );
+
+    if (Number.isNaN(transactionDate.getTime())) {
       continue;
     }
 
-    const transactionDate = getTransactionDate(transaction);
-
     if (
-      transactionDate &&
-      (transactionDate < periodStartDate ||
-        transactionDate > periodEndDate)
+      transactionDate < periodStartDate ||
+      transactionDate > periodEndDate
     ) {
       continue;
     }
 
-    const amount = getNumberField(transaction, [
-      "amount",
-      "transaction_amount",
-      "transactionAmount",
-      "value",
-    ]);
+    const amount = Number(transaction.amount);
 
-    if (amount === undefined || amount === 0) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       continue;
     }
 
-    const transactionType = normalizeTransactionType(
-      transaction,
-      amount
-    );
+    const transactionType = transaction.type
+      ?.trim()
+      .toLowerCase();
 
     if (transactionType === "income") {
-      income += Math.abs(amount);
+      income += amount;
       incomeTransactionCount += 1;
       transactionCount += 1;
       continue;
     }
 
     if (transactionType === "expense") {
-      expenses += Math.abs(amount);
+      expenses += amount;
       expenseTransactionCount += 1;
       transactionCount += 1;
     }
