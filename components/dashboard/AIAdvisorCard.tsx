@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  analyzeSpending,
+  type SpendingCategoryData,
+} from "@/services/ai/spendingAnalyzer";
 
 interface Transaction {
   id?: string;
@@ -8,36 +17,79 @@ interface Transaction {
   name?: string | null;
   merchant_name?: string | null;
   amount: number | string;
-  date: string;
+
+  date?: string;
+  transaction_date?: string;
+
   category?: string | string[] | null;
+
   personal_finance_category?: {
     primary?: string | null;
     detailed?: string | null;
   } | null;
+
+  personal_finance_primary?: string | null;
+  personal_finance_detailed?: string | null;
+
   pending?: boolean;
+  is_removed?: boolean;
+}
+
+interface Budget {
+  id?: string;
+  category?: string | null;
+  amount?: number | string | null;
+  budget_amount?: number | string | null;
+  monthly_limit?: number | string | null;
 }
 
 interface TransactionsResponse {
   success?: boolean;
   transactions?: Transaction[];
+  data?: Transaction[];
   error?: string;
 }
 
-interface SpendingCategory {
-  name: string;
-  amount: number;
+interface BudgetsResponse {
+  success?: boolean;
+  budgets?: Budget[];
+  data?: Budget[];
+  error?: string;
 }
 
-interface SpendingAnalysis {
-  currentMonthSpending: number;
-  previousMonthSpending: number;
-  spendingChange: number | null;
-  topCategory: SpendingCategory | null;
-  estimatedSavings: number;
-  transactionCount: number;
+interface AIAdvice {
+  headline: string;
+  summary: string;
+  recommendations: string[];
 }
 
-function formatCurrency(amount: number): string {
+interface AIAdviceResponse {
+  success?: boolean;
+  advice?: AIAdvice;
+  error?: string;
+}
+
+interface AIAdvisorCardProps {
+  monthlyIncome?: number;
+}
+
+const AI_ADVISOR_ENABLED =
+  process.env.NEXT_PUBLIC_AI_ADVISOR_ENABLED ===
+  "true";
+
+function toSafeNumber(
+  value: number | string | null | undefined,
+): number {
+  const parsedValue = Number(value);
+
+  return Number.isFinite(parsedValue)
+    ? parsedValue
+    : 0;
+}
+
+function formatCurrency(
+  amount: number,
+): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -46,7 +98,9 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-function formatPercentage(value: number): string {
+function formatPercentage(
+  value: number,
+): string {
   return new Intl.NumberFormat("en-US", {
     style: "percent",
     minimumFractionDigits: 0,
@@ -54,173 +108,378 @@ function formatPercentage(value: number): string {
   }).format(Math.abs(value) / 100);
 }
 
-function normalizeCategoryName(category: string): string {
+function normalizeCategoryName(
+  category: string,
+): string {
   return category
     .replaceAll("_", " ")
+    .trim()
     .toLowerCase()
-    .replace(/\b\w/g, (character) => character.toUpperCase());
+    .replace(/\b\w/g, (character) =>
+      character.toUpperCase(),
+    );
 }
 
-function getTransactionCategory(transaction: Transaction): string {
-  const personalFinanceCategory =
-    transaction.personal_finance_category?.primary;
+function getTransactionCategory(
+  transaction: Transaction,
+): string {
+  const primaryCategory =
+    transaction.personal_finance_primary ??
+    transaction.personal_finance_category
+      ?.primary;
 
-  if (personalFinanceCategory) {
-    return normalizeCategoryName(personalFinanceCategory);
-  }
-
-  if (Array.isArray(transaction.category)) {
-    return transaction.category[0] ?? "Other";
+  if (primaryCategory) {
+    return normalizeCategoryName(
+      primaryCategory,
+    );
   }
 
   if (
-    typeof transaction.category === "string" &&
+    Array.isArray(transaction.category)
+  ) {
+    const firstCategory =
+      transaction.category[0];
+
+    return firstCategory
+      ? normalizeCategoryName(
+          firstCategory,
+        )
+      : "Other";
+  }
+
+  if (
+    typeof transaction.category ===
+      "string" &&
     transaction.category.trim()
   ) {
-    return normalizeCategoryName(transaction.category);
+    return normalizeCategoryName(
+      transaction.category,
+    );
   }
 
   return "Other";
 }
 
-function getTransactionAmount(transaction: Transaction): number {
-  const amount = Number(transaction.amount);
+function isExcludedCategory(
+  category: string,
+): boolean {
+  const normalized =
+    category.toLowerCase();
 
-  if (!Number.isFinite(amount)) {
-    return 0;
-  }
+  return [
+    "income",
+    "transfer",
+    "payment",
+    "payroll",
+    "deposit",
+    "credit card payment",
+    "loan payment",
+  ].some((excludedCategory) =>
+    normalized.includes(
+      excludedCategory,
+    ),
+  );
+}
 
-  return amount;
+function getTransactionDate(
+  transaction: Transaction,
+): string | null {
+  return (
+    transaction.transaction_date ??
+    transaction.date ??
+    null
+  );
+}
+
+function parseTransactionDate(
+  date: string,
+): Date | null {
+  const parsedDate = new Date(
+    /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ? `${date}T12:00:00`
+      : date,
+  );
+
+  return Number.isNaN(
+    parsedDate.getTime(),
+  )
+    ? null
+    : parsedDate;
 }
 
 function isSameMonth(
   date: Date,
-  year: number,
-  month: number
+  targetDate: Date,
 ): boolean {
   return (
-    date.getFullYear() === year &&
-    date.getMonth() === month
+    date.getFullYear() ===
+      targetDate.getFullYear() &&
+    date.getMonth() ===
+      targetDate.getMonth()
   );
 }
 
-function calculateSpendingAnalysis(
-  transactions: Transaction[]
-): SpendingAnalysis {
-  const today = new Date();
+function getLatestTransactionDate(
+  transactions: Transaction[],
+): Date | null {
+  let latestDate: Date | null = null;
 
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth();
+  transactions.forEach(
+    (transaction) => {
+      const rawDate =
+  getTransactionDate(transaction);
 
-  const previousMonthDate = new Date(
-    currentYear,
-    currentMonth - 1,
-    1
+if (!rawDate) {
+  return;
+}
+
+const parsedDate =
+  parseTransactionDate(rawDate);
+
+      if (!parsedDate) {
+        return;
+      }
+
+      if (
+        latestDate === null ||
+        parsedDate.getTime() >
+          latestDate.getTime()
+      ) {
+        latestDate = parsedDate;
+      }
+    },
   );
 
-  const previousYear = previousMonthDate.getFullYear();
-  const previousMonth = previousMonthDate.getMonth();
+  return latestDate;
+}
 
-  let currentMonthSpending = 0;
-  let previousMonthSpending = 0;
-  let transactionCount = 0;
+function getPreviousMonthDate(
+  referenceDate: Date,
+): Date {
+  return new Date(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth() - 1,
+    1,
+  );
+}
 
-  const categoryTotals = new Map<string, number>();
+function getBudgetAmount(
+  budget: Budget,
+): number {
+  return Math.max(
+    0,
+    toSafeNumber(
+      budget.amount ??
+        budget.budget_amount ??
+        budget.monthly_limit,
+    ),
+  );
+}
 
-  transactions.forEach((transaction) => {
-    if (transaction.pending) {
-      return;
-    }
+function buildCategoryData(
+  transactions: Transaction[],
+  budgets: Budget[],
+  referenceDate: Date,
+): SpendingCategoryData[] {
+  const previousMonthDate =
+    getPreviousMonthDate(referenceDate);
 
-    const transactionDate = new Date(
-      `${transaction.date}T12:00:00`
-    );
+  const categoryMap = new Map<
+    string,
+    SpendingCategoryData
+  >();
 
-    if (Number.isNaN(transactionDate.getTime())) {
-      return;
-    }
+  transactions.forEach(
+    (transaction) => {
+      if (transaction.pending) {
+        return;
+      }
 
-    const amount = getTransactionAmount(transaction);
+      const rawDate =
+  getTransactionDate(transaction);
 
-    /*
-     * Plaid generally returns expenses as positive amounts
-     * and income/refunds as negative amounts.
-     */
-    if (amount <= 0) {
-      return;
-    }
+if (!rawDate) {
+  return;
+}
 
-    if (
-      isSameMonth(
-        transactionDate,
-        currentYear,
-        currentMonth
-      )
-    ) {
-      currentMonthSpending += amount;
-      transactionCount += 1;
+const transactionDate =
+  parseTransactionDate(rawDate);
+
+      if (!transactionDate) {
+        return;
+      }
+
+      const amount = Math.abs(
+    toSafeNumber(transaction.amount)
+);
+
+      if (amount <= 0) {
+        return;
+      }
 
       const category =
-        getTransactionCategory(transaction);
+        getTransactionCategory(
+          transaction,
+        );
 
-      categoryTotals.set(
+      if (
+        isExcludedCategory(category)
+      ) {
+        return;
+      }
+
+      const existingCategory =
+        categoryMap.get(category) ?? {
+          category,
+          currentAmount: 0,
+          previousAmount: 0,
+          budgetAmount: 0,
+        };
+
+      if (
+        isSameMonth(
+          transactionDate,
+          referenceDate,
+        )
+      ) {
+        existingCategory.currentAmount +=
+          amount;
+      }
+
+      if (
+        isSameMonth(
+          transactionDate,
+          previousMonthDate,
+        )
+      ) {
+        existingCategory.previousAmount =
+          (existingCategory.previousAmount ??
+            0) + amount;
+      }
+
+      categoryMap.set(
         category,
-        (categoryTotals.get(category) ?? 0) + amount
+        existingCategory,
       );
+    },
+  );
+
+  budgets.forEach((budget) => {
+    const rawCategory =
+      budget.category?.trim();
+
+    if (!rawCategory) {
+      return;
     }
 
-    if (
-      isSameMonth(
-        transactionDate,
-        previousYear,
-        previousMonth
-      )
-    ) {
-      previousMonthSpending += amount;
-    }
+    const category =
+      normalizeCategoryName(
+        rawCategory,
+      );
+
+    const existingCategory =
+      categoryMap.get(category) ?? {
+        category,
+        currentAmount: 0,
+        previousAmount: 0,
+        budgetAmount: 0,
+      };
+
+    existingCategory.budgetAmount =
+      getBudgetAmount(budget);
+
+    categoryMap.set(
+      category,
+      existingCategory,
+    );
   });
 
-  const topCategory =
-  Array.from(categoryTotals.entries()).reduce<
-    SpendingCategory | null
-  >((largestCategory, [name, amount]) => {
-    if (
-      largestCategory === null ||
-      amount > largestCategory.amount
-    ) {
-      return {
-        name,
-        amount,
-      };
-    }
+  return Array.from(
+    categoryMap.values(),
+  )
+    .filter(
+      (category) =>
+        category.currentAmount > 0 ||
+        (category.previousAmount ?? 0) >
+          0 ||
+        (category.budgetAmount ?? 0) >
+          0,
+    )
+    .sort(
+      (firstCategory, secondCategory) =>
+        secondCategory.currentAmount -
+        firstCategory.currentAmount,
+    );
+}
 
-    return largestCategory;
-  }, null);
+function getCurrentTransactionCount(
+  transactions: Transaction[],
+  referenceDate: Date,
+): number {
+  return transactions.filter(
+    (transaction) => {
+      if (transaction.pending) {
+        return false;
+      }
 
-  const spendingChange =
-    previousMonthSpending > 0
-      ? ((currentMonthSpending -
-          previousMonthSpending) /
-          previousMonthSpending) *
-        100
-      : null;
+      const rawDate =
+  getTransactionDate(transaction);
 
-  /*
-   * Initial savings estimate:
-   * 10% of the highest spending category.
-   */
-  const estimatedSavings = topCategory
-    ? topCategory.amount * 0.1
-    : 0;
+if (!rawDate) {
+  return false;
+}
 
-  return {
-    currentMonthSpending,
-    previousMonthSpending,
-    spendingChange,
-    topCategory,
-    estimatedSavings,
-    transactionCount,
-  };
+const date =
+  parseTransactionDate(rawDate);
+
+      if (!date) {
+        return false;
+      }
+
+      const amount = toSafeNumber(
+        transaction.amount,
+      );
+
+      if (amount <= 0) {
+        return false;
+      }
+
+      const category =
+        getTransactionCategory(
+          transaction,
+        );
+
+      return (
+        !isExcludedCategory(category) &&
+        isSameMonth(
+          date,
+          referenceDate,
+        )
+      );
+    },
+  ).length;
+}
+
+function getInsightStyles(
+  type:
+    | "positive"
+    | "warning"
+    | "critical"
+    | "neutral",
+): string {
+  switch (type) {
+    case "critical":
+      return "border-red-200 bg-red-50 text-red-900";
+
+    case "warning":
+      return "border-amber-200 bg-amber-50 text-amber-900";
+
+    case "positive":
+      return "border-emerald-200 bg-emerald-50 text-emerald-900";
+
+    default:
+      return "border-blue-200 bg-blue-50 text-blue-900";
+  }
 }
 
 function LoadingState() {
@@ -228,8 +487,10 @@ function LoadingState() {
     <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
       <div className="animate-pulse">
         <div className="h-4 w-28 rounded bg-gray-200" />
+
         <div className="mt-3 h-8 w-60 rounded bg-gray-200" />
-        <div className="mt-2 h-4 w-80 rounded bg-gray-100" />
+
+        <div className="mt-2 h-4 w-80 max-w-full rounded bg-gray-100" />
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {[1, 2, 3].map((item) => (
@@ -244,52 +505,121 @@ function LoadingState() {
   );
 }
 
-export default function AIAdvisorCard() {
-  const [transactions, setTransactions] = useState<
-    Transaction[]
-  >([]);
+export default function AIAdvisorCard({
+  monthlyIncome = 12041,
+}: AIAdvisorCardProps) {
+  const [transactions, setTransactions] =
+    useState<Transaction[]>([]);
 
-  const [loading, setLoading] = useState(true);
+  const [budgets, setBudgets] =
+    useState<Budget[]>([]);
 
-  const [error, setError] = useState<string | null>(
-    null
-  );
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] = useState<
+    string | null
+  >(null);
+
+  const [aiAdvice, setAiAdvice] =
+    useState<AIAdvice | null>(null);
+
+  const [aiLoading, setAiLoading] =
+    useState(false);
+
+  const [aiError, setAiError] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     let active = true;
 
-    async function loadTransactions() {
+    async function loadFinancialData() {
       try {
-        setLoading(true);
         setError(null);
 
-        const response = await fetch(
-          "/api/transactions?limit=500",
-          {
+        const [
+          transactionsResponse,
+          budgetsResponse,
+        ] = await Promise.all([
+          fetch(
+            "/api/transactions?limit=500",
+            {
+              method: "GET",
+              cache: "no-store",
+            },
+          ),
+          fetch("/api/budgets", {
             method: "GET",
             cache: "no-store",
-          }
-        );
+          }),
+        ]);
 
-        const result =
-          (await response.json()) as TransactionsResponse;
+        const transactionsResult =
+          (await transactionsResponse.json()) as
+            | TransactionsResponse
+            | Transaction[];
 
-        if (!response.ok) {
+        const budgetsResult =
+          (await budgetsResponse.json()) as
+            | BudgetsResponse
+            | Budget[];
+
+        if (!transactionsResponse.ok) {
+          const message = Array.isArray(
+            transactionsResult,
+          )
+            ? null
+            : transactionsResult.error;
+
           throw new Error(
-            result.error ??
-              "Unable to load transaction data"
+            message ??
+              "Unable to load transaction data",
           );
         }
 
+        if (!budgetsResponse.ok) {
+          const message = Array.isArray(
+            budgetsResult,
+          )
+            ? null
+            : budgetsResult.error;
+
+          throw new Error(
+            message ??
+              "Unable to load budget data",
+          );
+        }
+
+        const loadedTransactions =
+          Array.isArray(
+            transactionsResult,
+          )
+            ? transactionsResult
+            : transactionsResult.transactions ??
+              transactionsResult.data ??
+              [];
+
+        const loadedBudgets =
+          Array.isArray(budgetsResult)
+            ? budgetsResult
+            : budgetsResult.budgets ??
+              budgetsResult.data ??
+              [];
+
         if (active) {
-          setTransactions(result.transactions ?? []);
+          setTransactions(
+            loadedTransactions,
+          );
+
+          setBudgets(loadedBudgets);
         }
       } catch (loadError) {
         if (active) {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "Unable to load transaction data"
+              : "Unable to load financial data",
           );
         }
       } finally {
@@ -299,17 +629,208 @@ export default function AIAdvisorCard() {
       }
     }
 
-    loadTransactions();
+    void loadFinancialData();
 
     return () => {
       active = false;
     };
   }, []);
 
-  const analysis = useMemo(
-    () => calculateSpendingAnalysis(transactions),
-    [transactions]
+  const latestTransactionDate =
+    useMemo(
+      () =>
+        getLatestTransactionDate(
+          transactions,
+        ),
+      [transactions],
+    );
+
+  const analysisReferenceDate =
+    useMemo(
+      () =>
+        latestTransactionDate ??
+        new Date(),
+      [latestTransactionDate],
+    );
+
+  const categories = useMemo(
+    () =>
+      buildCategoryData(
+        transactions,
+        budgets,
+        analysisReferenceDate,
+      ),
+    [
+      analysisReferenceDate,
+      budgets,
+      transactions,
+    ],
   );
+
+  const totalSpending = useMemo(
+    () =>
+      categories.reduce(
+        (total, category) =>
+          total +
+          category.currentAmount,
+        0,
+      ),
+    [categories],
+  );
+
+  const previousTotalSpending =
+    useMemo(
+      () =>
+        categories.reduce(
+          (total, category) =>
+            total +
+            (category.previousAmount ??
+              0),
+          0,
+        ),
+      [categories],
+    );
+
+  const analysis = useMemo(
+    () =>
+      analyzeSpending({
+        categories,
+        monthlyIncome,
+        totalSpending,
+        previousTotalSpending,
+      }),
+    [
+      categories,
+      monthlyIncome,
+      previousTotalSpending,
+      totalSpending,
+    ],
+  );
+
+  const transactionCount =
+    useMemo(
+      () =>
+        getCurrentTransactionCount(
+          transactions,
+          analysisReferenceDate,
+        ),
+      [
+        analysisReferenceDate,
+        transactions,
+      ],
+    );
+
+  const analysisMonth = useMemo(
+    () =>
+      new Intl.DateTimeFormat(
+        "en-US",
+        {
+          month: "long",
+          year: "numeric",
+        },
+      ).format(
+        analysisReferenceDate,
+      ),
+    [analysisReferenceDate],
+  );
+
+  useEffect(() => {
+  if (
+    !AI_ADVISOR_ENABLED ||
+    loading ||
+    error ||
+    transactions.length === 0 ||
+    analysis.totalSpending <= 0
+  ) {
+    return;
+  }
+
+    const controller =
+      new AbortController();
+
+    let active = true;
+
+    async function loadAiAdvice() {
+      try {
+        setAiLoading(true);
+        setAiError(null);
+        setAiAdvice(null);
+
+        const response = await fetch(
+          "/api/ai/spending-advice",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              analysis,
+              analysisMonth,
+            }),
+            signal: controller.signal,
+          },
+        );
+
+        const result =
+          (await response.json()) as
+            AIAdviceResponse;
+
+        if (!response.ok) {
+          throw new Error(
+            result.error ??
+              "Unable to generate AI advice.",
+          );
+        }
+
+        if (
+          !result.success ||
+          !result.advice
+        ) {
+          throw new Error(
+            result.error ??
+              "AI advice was not returned.",
+          );
+        }
+
+        if (active) {
+          setAiAdvice(result.advice);
+        }
+      } catch (loadError) {
+        if (
+          loadError instanceof Error &&
+          loadError.name === "AbortError"
+        ) {
+          return;
+        }
+
+        if (active) {
+          setAiError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Unable to generate AI advice.",
+          );
+        }
+      } finally {
+        if (active) {
+          setAiLoading(false);
+        }
+      }
+    }
+
+    void loadAiAdvice();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [
+    analysis,
+    analysisMonth,
+    error,
+    loading,
+    transactions.length,
+  ]);
 
   if (loading) {
     return <LoadingState />;
@@ -344,22 +865,29 @@ export default function AIAdvisorCard() {
           AI Financial Advisor
         </h2>
 
-        <p className="mt-3 text-sm text-gray-500">
-          No transactions were found. Connect an account
-          and synchronize transactions to generate financial
+        <p className="mt-3 text-sm leading-6 text-gray-500">
+          No transactions were found.
+          Connect an account and synchronize
+          transactions to generate financial
           insights.
         </p>
       </section>
     );
   }
 
-  const change = analysis.spendingChange;
+  const spendingChange =
+    analysis.spendingChangePercentage;
 
   const spendingIncreased =
-    change !== null && change > 0;
+    analysis.previousTotalSpending > 0 &&
+    spendingChange > 0;
 
   const spendingDecreased =
-    change !== null && change < 0;
+    analysis.previousTotalSpending > 0 &&
+    spendingChange < 0;
+
+  const highestCategory =
+    analysis.highestSpendingCategory;
 
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -374,8 +902,9 @@ export default function AIAdvisorCard() {
           </h2>
 
           <p className="mt-1 text-sm text-gray-500">
-            Personalized insights generated from your
-            connected transaction data.
+            Personalized insights generated
+            from connected transaction and
+            budget data.
           </p>
         </div>
 
@@ -392,13 +921,16 @@ export default function AIAdvisorCard() {
 
           <p className="mt-2 text-2xl font-bold text-gray-900">
             {formatCurrency(
-              analysis.currentMonthSpending
+              analysis.totalSpending,
             )}
           </p>
 
           <p className="mt-2 text-xs text-gray-500">
-            {analysis.transactionCount} completed expense
-            {analysis.transactionCount === 1 ? "" : "s"}
+            {transactionCount} completed
+            expense
+            {transactionCount === 1
+              ? ""
+              : "s"}
           </p>
         </article>
 
@@ -417,17 +949,24 @@ export default function AIAdvisorCard() {
                   : "text-gray-900",
             ].join(" ")}
           >
-            {change === null
+            {analysis.previousTotalSpending <=
+            0
               ? "Not available"
-              : `${spendingIncreased ? "+" : ""}${formatPercentage(
-                  change
+              : `${
+                  spendingIncreased
+                    ? "+"
+                    : spendingDecreased
+                      ? "-"
+                      : ""
+                }${formatPercentage(
+                  spendingChange,
                 )}`}
           </p>
 
           <p className="mt-2 text-xs text-gray-500">
             Compared with{" "}
             {formatCurrency(
-              analysis.previousMonthSpending
+              analysis.previousTotalSpending,
             )}{" "}
             last month
           </p>
@@ -439,62 +978,204 @@ export default function AIAdvisorCard() {
           </p>
 
           <p className="mt-2 text-xl font-bold text-gray-900">
-            {analysis.topCategory?.name ?? "Not available"}
+            {highestCategory?.category ??
+              "Not available"}
           </p>
 
           <p className="mt-2 text-xs text-gray-500">
-            {analysis.topCategory
+            {highestCategory
               ? `${formatCurrency(
-                  analysis.topCategory.amount
+                  highestCategory.currentAmount,
                 )} spent this month`
               : "No categorized spending found"}
           </p>
         </article>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <article className="rounded-xl border border-blue-100 bg-blue-50 p-5">
-          <h3 className="font-semibold text-blue-950">
-            Spending Insight
-          </h3>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <article className="rounded-xl border border-emerald-100 bg-emerald-50 p-5">
+          <p className="text-sm font-medium text-emerald-700">
+            Estimated Savings
+          </p>
 
-          <p className="mt-2 text-sm leading-6 text-blue-900">
-            {change === null
-              ? "There is not enough previous-month data to calculate a spending trend yet."
-              : spendingIncreased
-                ? `Your spending is ${formatPercentage(
-                    change
-                  )} higher than last month. Review ${
-                    analysis.topCategory?.name ??
-                    "your largest categories"
-                  } for potential reductions.`
-                : spendingDecreased
-                  ? `Your spending is ${formatPercentage(
-                      change
-                    )} lower than last month. You are moving in a positive direction.`
-                  : "Your spending is approximately unchanged from last month."}
+          <p className="mt-2 text-2xl font-bold text-emerald-950">
+            {formatCurrency(
+              analysis.savingsAmount,
+            )}
+          </p>
+
+          <p className="mt-2 text-sm text-emerald-800">
+            Estimated savings rate:{" "}
+            {analysis.savingsRate.toFixed(1)}
+            %
           </p>
         </article>
 
-        <article className="rounded-xl border border-emerald-100 bg-emerald-50 p-5">
-          <h3 className="font-semibold text-emerald-950">
-            Savings Opportunity
-          </h3>
+        <article className="rounded-xl border border-violet-100 bg-violet-50 p-5">
+          <p className="text-sm font-medium text-violet-700">
+            Budget Status
+          </p>
 
-          <p className="mt-2 text-sm leading-6 text-emerald-900">
-            {analysis.topCategory
-              ? `Reducing ${analysis.topCategory.name} spending by 10% could save approximately ${formatCurrency(
-                  analysis.estimatedSavings
-                )} per month.`
-              : "More transaction history is needed to estimate a savings opportunity."}
+          <p className="mt-2 text-2xl font-bold text-violet-950">
+            {
+              analysis
+                .overBudgetCategories
+                .length
+            }
+          </p>
+
+          <p className="mt-2 text-sm text-violet-800">
+            categories currently over budget
           </p>
         </article>
       </div>
 
+      <div className="mt-6">
+        <h3 className="text-lg font-semibold text-gray-900">
+          AI Briefing
+        </h3>
+
+        {aiLoading && (
+          <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-5">
+            <div className="animate-pulse">
+              <div className="h-5 w-48 rounded bg-blue-200" />
+
+              <div className="mt-3 h-4 w-full rounded bg-blue-100" />
+
+              <div className="mt-2 h-4 w-4/5 rounded bg-blue-100" />
+
+              <div className="mt-5 space-y-2">
+                {[1, 2, 3].map((item) => (
+                  <div
+                    key={item}
+                    className="h-4 w-11/12 rounded bg-blue-100"
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!aiLoading && aiAdvice && (
+          <article className="mt-3 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5">
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="text-xl"
+              >
+                ✨
+              </span>
+
+              <h4 className="text-lg font-bold text-blue-950">
+                {aiAdvice.headline}
+              </h4>
+            </div>
+
+            <p className="mt-3 text-sm leading-6 text-blue-900">
+              {aiAdvice.summary}
+            </p>
+
+            <div className="mt-5">
+              <p className="text-sm font-semibold text-blue-950">
+                Recommended Actions
+              </p>
+
+              <ol className="mt-3 space-y-3">
+                {aiAdvice.recommendations.map(
+                  (
+                    recommendation,
+                    index,
+                  ) => (
+                    <li
+                      key={`${index}-${recommendation}`}
+                      className="flex gap-3 text-sm leading-6 text-blue-900"
+                    >
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+                        {index + 1}
+                      </span>
+
+                      <span>
+                        {recommendation}
+                      </span>
+                    </li>
+                  ),
+                )}
+              </ol>
+            </div>
+          </article>
+        )}
+        {!AI_ADVISOR_ENABLED && (
+          <article className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-5">
+            <p className="text-sm font-semibold text-gray-900">
+              Generative AI briefing is paused
+            </p>
+
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              Rule-based WealthOS insights are active.
+              Generative AI recommendations will be
+              enabled during the final deployment
+              stage.
+            </p>
+          </article>
+        )}
+        {!aiLoading && aiError && (
+          <article className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-semibold text-amber-900">
+              Generative AI briefing is
+              temporarily unavailable
+            </p>
+
+            <p className="mt-1 text-sm leading-6 text-amber-800">
+              {aiError} The rule-based
+              WealthOS insights below are
+              still available.
+            </p>
+          </article>
+        )}
+      </div>
+
+      <div className="mt-6">
+        <h3 className="text-lg font-semibold text-gray-900">
+          Personalized Insights
+        </h3>
+
+        <div className="mt-3 grid gap-3 lg:grid-cols-2">
+          {analysis.insights
+            .slice(0, 6)
+            .map((insight) => (
+              <article
+                key={insight.id}
+                className={[
+                  "rounded-xl border p-4",
+                  getInsightStyles(
+                    insight.type,
+                  ),
+                ].join(" ")}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <h4 className="font-semibold">
+                    {insight.title}
+                  </h4>
+
+                  <span className="rounded-full bg-white/70 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide">
+                    {insight.type}
+                  </span>
+                </div>
+
+                <p className="mt-2 text-sm leading-6">
+                  {insight.description}
+                </p>
+              </article>
+            ))}
+        </div>
+      </div>
+
       <p className="mt-4 text-xs text-gray-400">
-        This initial analysis uses rule-based calculations.
-        Generative AI commentary will be added in a later
-        step.
+        Analysis month: {analysisMonth}.
+        AI-generated guidance is based only
+        on the displayed spending analysis
+        and is provided for informational
+        purposes.
       </p>
     </section>
   );

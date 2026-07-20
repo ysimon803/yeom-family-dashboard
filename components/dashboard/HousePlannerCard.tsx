@@ -8,6 +8,15 @@ import {
   type HousePlannerSummary,
 } from "@/services/api/housePlanner";
 
+interface HousePlannerCardProps {
+  currentSavings?: number;
+  targetHomePrice?: number;
+  downPaymentPercent?: number;
+  monthlySavings?: number;
+  expectedAnnualReturn?: number;
+  monthsUntilPurchase?: number;
+}
+
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -26,29 +35,57 @@ function Metric({
   return (
     <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
       <p className="text-sm text-slate-500">{title}</p>
-      <p className="mt-2 text-xl font-bold text-slate-950">{value}</p>
+
+      <p className="mt-2 text-xl font-bold text-slate-950">
+        {value}
+      </p>
     </div>
   );
 }
 
-export default function HousePlannerCard() {
-  const [summary, setSummary] =
+function hasCompleteProps(
+  props: HousePlannerCardProps,
+): props is Required<HousePlannerCardProps> {
+  return (
+    props.currentSavings !== undefined &&
+    props.targetHomePrice !== undefined &&
+    props.downPaymentPercent !== undefined &&
+    props.monthlySavings !== undefined &&
+    props.expectedAnnualReturn !== undefined &&
+    props.monthsUntilPurchase !== undefined
+  );
+}
+
+export default function HousePlannerCard(
+  props: HousePlannerCardProps,
+) {
+  const hasProvidedData = hasCompleteProps(props);
+
+  const [fetchedSummary, setFetchedSummary] =
     useState<HousePlannerSummary | null>(null);
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(
+    !hasProvidedData,
+  );
+
+  const [error, setError] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
+    if (hasProvidedData) {
+      return;
+    }
+
     let cancelled = false;
 
     async function loadSummary() {
       try {
-        setError(null);
-
-        const result = await getHousePlannerSummary();
+        const result =
+          await getHousePlannerSummary();
 
         if (!cancelled) {
-          setSummary(result);
+          setFetchedSummary(result);
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -70,7 +107,38 @@ export default function HousePlannerCard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [hasProvidedData]);
+
+  const providedSummary = useMemo<
+    HousePlannerSummary | null
+  >(() => {
+    if (!hasProvidedData) {
+      return null;
+    }
+
+    return {
+      currentSavings: props.currentSavings,
+      targetHomePrice: props.targetHomePrice,
+      downPaymentPercent:
+        props.downPaymentPercent,
+      monthlySavings: props.monthlySavings,
+      monthsUntilPurchase:
+        props.monthsUntilPurchase,
+    };
+  }, [
+    hasProvidedData,
+    props.currentSavings,
+    props.downPaymentPercent,
+    props.monthlySavings,
+    props.monthsUntilPurchase,
+    props.targetHomePrice,
+  ]);
+
+  const summary =
+    providedSummary ?? fetchedSummary;
+
+  const expectedAnnualReturn =
+    props.expectedAnnualReturn ?? 7;
 
   const forecast = useMemo(() => {
     if (!summary) {
@@ -80,16 +148,17 @@ export default function HousePlannerCard() {
     return calculateForecast({
       currentNetWorth: summary.currentSavings,
       monthlySavings: summary.monthlySavings,
-      expectedAnnualReturn: 7,
+      expectedAnnualReturn,
       months: summary.monthsUntilPurchase,
     });
-  }, [summary]);
+  }, [expectedAnnualReturn, summary]);
 
-  if (loading) {
+  if (loading && !hasProvidedData) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="animate-pulse">
           <div className="h-5 w-32 rounded bg-slate-200" />
+
           <div className="mt-3 h-8 w-52 rounded bg-slate-200" />
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -111,7 +180,8 @@ export default function HousePlannerCard() {
         </h2>
 
         <p className="mt-2 text-sm text-red-600">
-          {error ?? "House planner data is unavailable"}
+          {error ??
+            "House planner data is unavailable"}
         </p>
       </section>
     );
@@ -121,16 +191,22 @@ export default function HousePlannerCard() {
     summary.targetHomePrice *
     (summary.downPaymentPercent / 100);
 
-  const projectedSavings = forecast.projectedNetWorth;
+  const projectedSavings =
+    forecast.projectedNetWorth;
 
   const rawProgress =
     targetDownPayment > 0
-      ? (projectedSavings / targetDownPayment) * 100
+      ? (projectedSavings / targetDownPayment) *
+        100
       : 0;
 
-  const progress = Math.min(Math.max(rawProgress, 0), 100);
+  const progress = Math.min(
+    Math.max(rawProgress, 0),
+    100,
+  );
 
-  const onTrack = projectedSavings >= targetDownPayment;
+  const onTrack =
+    projectedSavings >= targetDownPayment;
 
   const remainingAmount = Math.max(
     targetDownPayment - projectedSavings,
@@ -150,7 +226,8 @@ export default function HousePlannerCard() {
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Projection based on your current savings and cash flow
+            Projection based on your current savings
+            and cash flow
           </p>
         </div>
 
@@ -161,29 +238,39 @@ export default function HousePlannerCard() {
               : "bg-amber-100 text-amber-700"
           }`}
         >
-          {onTrack ? "On Track" : "Needs Attention"}
+          {onTrack
+            ? "On Track"
+            : "Needs Attention"}
         </span>
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric
           title="Target Home"
-          value={formatCurrency(summary.targetHomePrice)}
+          value={formatCurrency(
+            summary.targetHomePrice,
+          )}
         />
 
         <Metric
           title={`${summary.downPaymentPercent}% Down Payment`}
-          value={formatCurrency(targetDownPayment)}
+          value={formatCurrency(
+            targetDownPayment,
+          )}
         />
 
         <Metric
           title="Current Savings"
-          value={formatCurrency(summary.currentSavings)}
+          value={formatCurrency(
+            summary.currentSavings,
+          )}
         />
 
         <Metric
           title={`Projected in ${summary.monthsUntilPurchase} Months`}
-          value={formatCurrency(projectedSavings)}
+          value={formatCurrency(
+            projectedSavings,
+          )}
         />
       </div>
 
@@ -206,7 +293,9 @@ export default function HousePlannerCard() {
         >
           <div
             className={`h-full rounded-full transition-all ${
-              onTrack ? "bg-emerald-600" : "bg-blue-600"
+              onTrack
+                ? "bg-emerald-600"
+                : "bg-blue-600"
             }`}
             style={{
               width: `${progress}%`,
@@ -222,7 +311,9 @@ export default function HousePlannerCard() {
           </p>
 
           <p className="mt-1 text-sm font-semibold text-slate-950">
-            {formatCurrency(summary.monthlySavings)}
+            {formatCurrency(
+              summary.monthlySavings,
+            )}
           </p>
         </div>
 

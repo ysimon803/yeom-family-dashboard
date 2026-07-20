@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import CountUp from "react-countup";
 
 import { getAccounts } from "@/services/api/accounts";
 
@@ -17,15 +18,6 @@ const EMPTY_SUMMARY: NetWorthSummaryData = {
   liabilityAccountCount: 0,
 };
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
 interface SummaryCardProps {
   title: string;
   value: number;
@@ -39,19 +31,39 @@ function SummaryCard({
   description,
   valueClassName,
 }: SummaryCardProps) {
+  const isNegative = value < 0;
+
   return (
-    <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <article
+      className={[
+        "rounded-2xl border border-gray-200 bg-white p-5 shadow-sm",
+        "transition-all duration-300 ease-out",
+        "hover:-translate-y-1 hover:border-gray-300 hover:shadow-lg",
+      ].join(" ")}
+    >
       <p className="text-sm font-medium text-gray-500">
         {title}
       </p>
 
       <p
-        className={`mt-2 text-2xl font-bold tracking-tight ${valueClassName}`}
+        className={[
+          "mt-2 text-2xl font-bold tracking-tight sm:text-3xl",
+          valueClassName,
+        ].join(" ")}
       >
-        {formatCurrency(value)}
+        {isNegative && "-"}$
+        <CountUp
+          start={0}
+          end={Math.abs(value)}
+          duration={1.4}
+          separator=","
+          decimals={2}
+          decimal="."
+          preserveValue
+        />
       </p>
 
-      <p className="mt-2 text-xs text-gray-400">
+      <p className="mt-2 text-xs leading-5 text-gray-400">
         {description}
       </p>
     </article>
@@ -174,18 +186,24 @@ export default function NetWorthSummary() {
 
   if (loading) {
     return (
-      <section>
+      <section aria-label="Loading net worth summary">
         <div className="mb-4">
-          <div className="h-6 w-44 animate-pulse rounded bg-gray-200" />
-          <div className="mt-2 h-4 w-72 animate-pulse rounded bg-gray-100" />
+          <div className="h-6 w-44 animate-pulse rounded-md bg-gray-200" />
+          <div className="mt-2 h-4 w-72 max-w-full animate-pulse rounded-md bg-gray-100" />
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           {[1, 2, 3].map((item) => (
             <div
               key={item}
-              className="h-32 animate-pulse rounded-2xl bg-gray-100"
-            />
+              className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
+            >
+              <div className="h-4 w-24 animate-pulse rounded bg-gray-200" />
+
+              <div className="mt-4 h-8 w-40 animate-pulse rounded bg-gray-200" />
+
+              <div className="mt-4 h-3 w-28 animate-pulse rounded bg-gray-100" />
+            </div>
           ))}
         </div>
       </section>
@@ -210,7 +228,7 @@ export default function NetWorthSummary() {
     <section>
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold tracking-tight text-gray-900">
             Net Worth Summary
           </h2>
 
@@ -219,7 +237,10 @@ export default function NetWorthSummary() {
           </p>
         </div>
 
-        <div className="text-xs text-gray-400">
+        <div
+          aria-live="polite"
+          className="min-h-5 text-xs text-gray-400"
+        >
           {snapshotStatus === "saving" &&
             "Saving today’s snapshot..."}
 
